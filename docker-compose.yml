@@ -1,0 +1,18 @@
+services:
+  backend:
+    image: mite-backend
+    container_name: mite_backend
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+      - "1514:1514/udp"
+      - "1515:1515/tcp"
+
+  frontend:
+    build: .
+    container_name: mite_frontend
+    restart: unless-stopped
+    ports:
+      - "8088:80"
+    depends_on:
+      - backend
