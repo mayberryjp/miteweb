@@ -1,18 +1,9 @@
 services:
-  backend:
-    image: mite-backend
-    container_name: mite_backend
+  mite-web:
+    image: mayberry4477/mite-web:latest
+    container_name: mite-web
     restart: unless-stopped
     ports:
-      - "8080:8080"
-      - "1514:1514/udp"
-      - "1515:1515/tcp"
-
-  frontend:
-    build: .
-    container_name: mite_frontend
-    restart: unless-stopped
-    ports:
-      - "8088:80"
-    depends_on:
-      - backend
+      - "4050:4050"
+    environment:
+      - MITE_API_BASE_URL=http://192.168.4.4:4050/api

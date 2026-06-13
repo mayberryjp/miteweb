@@ -1,12 +1,34 @@
-FROM node:20-alpine AS build
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-COPY . .
-RUN npm run build
+# 1. Build stage
+FROM node:24-alpine AS build
 
-FROM nginx:alpine
+# Install git
+RUN apk add --no-cache git
+
+# Clone the repository
+RUN git clone https://github.com/mayberryjp/miteweb.git /app
+
+# Set working directory
+WORKDIR /app
+
+RUN echo "VITE_API_BASE_URL=MITE_API_BASE_URL" >>/app/.env
+
+# Install dependencies and build the Vite project
+RUN npm install --silent && npx vite build
+
+# 2. Production stage
+FROM nginx:stable-alpine
+
+# Copy built assets from the build stage
 COPY --from=build /app/dist /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
+
+# Copy nginx config from the cloned repo
+COPY --from=build /app/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Expose port
+EXPOSE 4050
+
+COPY --from=build /app/env.sh /docker-entrypoint.d/env.sh
+RUN chmod +x /docker-entrypoint.d/env.sh
+
+# Default command
 CMD ["nginx", "-g", "daemon off;"]
