@@ -189,7 +189,12 @@
                   <td class="mono nowrap">{{ formatTime(a.created_at) }}</td>
                   <td><SeverityBadge :severity="a.severity" /></td>
                   <td class="mono">{{ a.source_ip || a.host || '—' }}</td>
-                  <td class="truncate">{{ a.message }}</td>
+                  <td
+                    class="msg-cell"
+                    :class="{ truncate: !expandedAlerts.has(a.id) }"
+                    @click="toggleAlert(a.id)"
+                    title="Click to expand"
+                  >{{ a.message }}</td>
                 </tr>
               </tbody>
             </table>
@@ -224,6 +229,16 @@ const regexValue = ref("");
 const saving = ref(false);
 const savingRegex = ref(false);
 const copyLabel = ref("Copy");
+const expandedAlerts = ref(new Set<number>());
+
+const toggleAlert = (id: number) => {
+  if (expandedAlerts.value.has(id)) {
+    expandedAlerts.value.delete(id);
+  } else {
+    expandedAlerts.value.add(id);
+  }
+  expandedAlerts.value = new Set(expandedAlerts.value);
+};
 const patternSourceIps = ref<string[]>([]);
 const loadingIps = ref(false);
 
@@ -574,10 +589,10 @@ onUnmounted(() => {
 
 .pattern-name {
   flex: 1;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 16px;
+  font-weight: 400;
   letter-spacing: 0.3px;
-  color: var(--text-primary);
+  color: #b1b8c0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -904,6 +919,13 @@ onUnmounted(() => {
 .alerts-section .data-table th:nth-child(2) { width: 100px; }
 .alerts-section .data-table th:nth-child(3) { width: 120px; }
 
+.msg-cell {
+  cursor: pointer;
+  word-break: break-all;
+}
+.msg-cell:hover {
+  color: var(--accent);
+}
 .truncate {
   max-width: none;
   overflow: hidden;
