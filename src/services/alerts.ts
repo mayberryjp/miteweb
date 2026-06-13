@@ -1,13 +1,15 @@
 import api from "./api";
-import type { AlertItem } from "@/types";
+import type { AlertItem, PaginatedResponse } from "@/types";
 
 export const getAlerts = async (params?: {
+  limit?: number;
+  offset?: number;
   severity?: string;
   host?: string;
   source_ip?: string;
-  rule_name?: string;
+  pattern_id?: number;
   search?: string;
 }) => {
-  const response = await api.get<AlertItem[]>("/alerts", { params });
+  const response = await api.get<PaginatedResponse<AlertItem>>("/alerts", { params });
   return response.data;
 };

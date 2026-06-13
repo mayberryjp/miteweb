@@ -1,21 +1,14 @@
 import api from "./api";
-import type { AIAnalysisItem } from "@/types";
+import type { PendingPattern } from "@/types";
 
-export const getAnalyses = async () => {
-  const response = await api.get<AIAnalysisItem[]>("/ai/analyses");
-  return response.data;
-};
-
-export const getAnalysis = async (id: number) => {
-  const response = await api.get<AIAnalysisItem>(`/ai/analyses/${id}`);
-  return response.data;
-};
-
-export const runAnalysis = async (params: {
-  host?: string;
-  source_ip?: string;
-  sample_count?: number;
+export const getPendingPatterns = async (params?: {
+  limit?: number;
 }) => {
-  const response = await api.post("/ai/analyze", params);
+  const response = await api.get<PendingPattern[]>("/ai/pending", { params });
+  return response.data;
+};
+
+export const triggerClassification = async () => {
+  const response = await api.post("/ai/classify");
   return response.data;
 };

@@ -35,20 +35,20 @@
       <h2 class="section-title">Configuration</h2>
       <div class="settings-card">
         <div class="setting-row">
-          <span class="setting-label">Discord webhook configured</span>
-          <span class="setting-value">{{ stats?.discord_configured ? 'yes' : 'no' }}</span>
+          <span class="setting-label">AI Discovery</span>
+          <span class="setting-value">{{ stats?.ai_enabled ? 'Enabled' : 'Disabled' }}</span>
         </div>
         <div class="setting-row">
-          <span class="setting-label">AI enabled</span>
-          <span class="setting-value">{{ stats?.ai_discovery_enabled ? 'yes' : 'no' }}</span>
+          <span class="setting-label">Total Patterns</span>
+          <span class="setting-value mono">{{ stats?.total_patterns ?? '—' }}</span>
         </div>
         <div class="setting-row">
-          <span class="setting-label">AI endpoint configured</span>
-          <span class="setting-value">{{ stats?.ai_configured ? 'yes' : 'no' }}</span>
+          <span class="setting-label">Pending Patterns</span>
+          <span class="setting-value mono">{{ stats?.pending_patterns ?? '—' }}</span>
         </div>
-        <div v-if="stats?.retention_days" class="setting-row">
-          <span class="setting-label">Retention</span>
-          <span class="setting-value mono">{{ stats.retention_days }} days</span>
+        <div v-if="stats?.database_size_bytes" class="setting-row">
+          <span class="setting-label">Database Size</span>
+          <span class="setting-value mono">{{ formatBytes(stats.database_size_bytes) }}</span>
         </div>
       </div>
     </section>
@@ -60,9 +60,6 @@
         <div class="action-group">
           <button class="btn btn-primary" :disabled="testingDiscord" @click="handleTestDiscord">
             {{ testingDiscord ? 'Sending...' : 'Test Discord Webhook' }}
-          </button>
-          <button class="btn btn-primary" :disabled="reloadingRules" @click="handleReloadRules">
-            {{ reloadingRules ? 'Reloading...' : 'Reload Rules' }}
           </button>
         </div>
         <div v-if="actionMessage" class="action-feedback" :class="actionSuccess ? 'feedback-success' : 'feedback-error'">
@@ -76,7 +73,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { getHealth, getStats, testDiscord } from "@/services/system";
-import { reloadRules } from "@/services/rules";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
 import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
@@ -86,7 +82,6 @@ const stats = ref<StatsData | null>(null);
 const error = ref("");
 const refreshing = ref(false);
 const testingDiscord = ref(false);
-const reloadingRules = ref(false);
 const actionMessage = ref("");
 const actionSuccess = ref(false);
 
@@ -97,6 +92,12 @@ const formatUptime = (seconds: number) => {
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return `${d}d ${h}h ${m}m`;
+};
+
+const formatBytes = (bytes: number) => {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
 const fetchData = async () => {
@@ -130,21 +131,6 @@ const handleTestDiscord = async () => {
     actionSuccess.value = false;
   } finally {
     testingDiscord.value = false;
-  }
-};
-
-const handleReloadRules = async () => {
-  reloadingRules.value = true;
-  actionMessage.value = "";
-  try {
-    await reloadRules();
-    actionMessage.value = "Rules reloaded successfully.";
-    actionSuccess.value = true;
-  } catch {
-    actionMessage.value = "Failed to reload rules.";
-    actionSuccess.value = false;
-  } finally {
-    reloadingRules.value = false;
   }
 };
 

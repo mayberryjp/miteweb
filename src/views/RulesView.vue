@@ -1,222 +1,632 @@
 <template>
-  <div class="rules-page">
-    <div class="page-header">
-      <h1 class="page-title">Rules</h1>
-      <button class="btn btn-primary" :disabled="reloading" @click="handleReload">
-        {{ reloading ? 'Reloading...' : 'Reload Rules' }}
+  <div class="patterns-page">
+    <!-- Risk Header -->
+    <div class="risk-header">
+      <h1 class="risk-title">
+        PATTERNS:
+        <span class="risk-value" :class="riskClass">{{ riskLabel }} ({{ alertPatternCount }})</span>
+      </h1>
+    </div>
+
+    <!-- Search -->
+    <div class="search-row">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+      </svg>
+      <input
+        v-model="search"
+        type="text"
+        class="search-input"
+        placeholder="Search patterns..."
+      />
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="filter-tabs">
+      <button
+        v-for="f in filters"
+        :key="f.value"
+        class="filter-tab"
+        :class="{ active: classificationFilter === f.value }"
+        @click="classificationFilter = f.value; fetchPatterns()"
+      >
+        {{ f.label }}
       </button>
     </div>
 
     <ApiErrorBanner v-if="error" :message="error" />
 
-    <div v-if="reloadMessage" class="reload-feedback" :class="reloadSuccess ? 'feedback-success' : 'feedback-error'">
-      {{ reloadMessage }}
+    <!-- Pattern list -->
+    <div class="pattern-list">
+      <div
+        v-for="p in filteredPatterns"
+        :key="p.id"
+        class="pattern-row"
+        :class="{ expanded: expandedId === p.id }"
+        @click="toggleExpand(p)"
+      >
+        <div class="pattern-main">
+          <div class="pattern-icon" :class="'icon-' + (p.effective_classification || p.classification || 'pending')">
+            <svg viewBox="0 0 20 20" fill="currentColor" width="18" height="18">
+              <path v-if="classIcon(p) === 'critical'" d="M10 2L2 18h16L10 2zm0 4l5.5 10h-11L10 6z"/>
+              <path v-else-if="classIcon(p) === 'high'" d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z"/>
+              <path v-else-if="classIcon(p) === 'medium'" d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 11H9v-2h2v2zm0-4H9V5h2v4z"/>
+              <path v-else-if="classIcon(p) === 'noise'" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11H9v2h2V7zm0 4H9v2h2v-2z"/>
+              <path v-else d="M10 2a8 8 0 100 16 8 8 0 000-16zm1 13H9v-2h2v2zm0-4H9V5h2v6z"/>
+            </svg>
+          </div>
+          <span class="pattern-name">{{ patternLabel(p) }}</span>
+          <div class="activity-bars">
+            <span
+              v-for="n in 12"
+              :key="n"
+              class="bar"
+              :class="barClass(p, n)"
+            ></span>
+          </div>
+          <span class="hit-count" :class="p.hit_count > 0 ? 'count-active' : 'count-zero'">
+            {{ p.hit_count }}
+          </span>
+        </div>
+
+        <!-- Expanded detail -->
+        <div v-if="expandedId === p.id" class="pattern-detail" @click.stop>
+          <div class="detail-grid">
+            <div class="detail-item">
+              <span class="detail-label">Classification</span>
+              <SeverityBadge :severity="p.effective_classification || p.classification" />
+              <span v-if="p.user_override" class="override-tag">override</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Host</span>
+              <span class="detail-value mono">{{ p.host || '—' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Program</span>
+              <span class="detail-value mono">{{ p.program || '—' }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Hit Count</span>
+              <span class="detail-value mono">{{ p.hit_count }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">First Seen</span>
+              <span class="detail-value mono">{{ formatTime(p.first_seen_at) }}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Last Seen</span>
+              <span class="detail-value mono">{{ formatTime(p.last_seen_at) }}</span>
+            </div>
+          </div>
+
+          <div v-if="p.ai_explanation" class="detail-explanation">
+            <span class="detail-label">AI Explanation</span>
+            <p class="explanation-text">{{ p.ai_explanation }}</p>
+          </div>
+
+          <div class="detail-sample">
+            <span class="detail-label">Sample Message</span>
+            <code class="sample-code">{{ p.sample_message }}</code>
+          </div>
+
+          <div class="detail-override">
+            <span class="detail-label">Override Classification</span>
+            <div class="override-controls">
+              <select v-model="overrideValue" class="override-select">
+                <option value="">None (use AI)</option>
+                <option value="critical">Critical</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+                <option value="noise">Noise</option>
+              </select>
+              <button class="btn btn-primary btn-sm" @click="saveOverride(p.id)" :disabled="saving">
+                {{ saving ? 'Saving...' : 'Save' }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <EmptyState v-if="!filteredPatterns.length && !error" message="No patterns match your search." />
     </div>
 
-    <p class="hint">Rules are edited on disk through YAML or Markdown files.</p>
-
-    <div class="table-wrapper">
-      <table v-if="rules.length" class="data-table">
-        <thead>
-          <tr>
-            <th>Enabled</th>
-            <th>Severity</th>
-            <th>Name</th>
-            <th>Description</th>
-            <th>Source File</th>
-            <th>Cooldown</th>
-            <th>Discord</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="rule in rules" :key="rule.name" :class="{ 'error-row': rule.load_status === 'error' }">
-            <td>
-              <span :class="rule.enabled ? 'dot-on' : 'dot-off'">●</span>
-            </td>
-            <td><SeverityBadge :severity="rule.severity" /></td>
-            <td class="mono">{{ rule.name }}</td>
-            <td>{{ rule.description || '—' }}</td>
-            <td class="mono text-muted" style="font-size: 11px;">{{ rule.source_file }}</td>
-            <td class="mono">{{ rule.cooldown_seconds ? `${rule.cooldown_seconds}s` : '—' }}</td>
-            <td>{{ rule.discord ? '✓' : '—' }}</td>
-            <td>
-              <StatusBadge :status="rule.load_status" :label="rule.load_status" />
-              <div v-if="rule.error" class="rule-error">{{ rule.error }}</div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-      <EmptyState v-else message="No rules loaded. Add YAML or Markdown rule files to the rules directory." icon="📋" />
+    <div class="list-footer mono">
+      {{ filteredPatterns.length }} of {{ total }} patterns
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { getRules, reloadRules } from "@/services/rules";
-import type { RuleItem } from "@/types";
+import { ref, computed, onMounted } from "vue";
+import { getPatterns, updatePattern } from "@/services/rules";
+import type { PatternItem } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
-import StatusBadge from "@/components/StatusBadge.vue";
 import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
 import EmptyState from "@/components/EmptyState.vue";
 
-const rules = ref<RuleItem[]>([]);
+const patterns = ref<PatternItem[]>([]);
+const total = ref(0);
 const error = ref("");
-const reloading = ref(false);
-const reloadMessage = ref("");
-const reloadSuccess = ref(false);
+const search = ref("");
+const classificationFilter = ref("");
+const expandedId = ref<number | null>(null);
+const overrideValue = ref("");
+const saving = ref(false);
 
-const fetchRules = async () => {
+const filters = [
+  { label: "All", value: "" },
+  { label: "Critical", value: "critical" },
+  { label: "High", value: "high" },
+  { label: "Medium", value: "medium" },
+  { label: "Low", value: "low" },
+  { label: "Noise", value: "noise" },
+  { label: "Pending", value: "pending" },
+];
+
+const filteredPatterns = computed(() => {
+  if (!search.value) return patterns.value;
+  const q = search.value.toLowerCase();
+  return patterns.value.filter(
+    (p) =>
+      p.pattern_text.toLowerCase().includes(q) ||
+      p.sample_message.toLowerCase().includes(q) ||
+      (p.host || "").toLowerCase().includes(q) ||
+      (p.program || "").toLowerCase().includes(q)
+  );
+});
+
+const alertPatternCount = computed(() =>
+  patterns.value.filter(
+    (p) => (p.effective_classification || p.classification) === "critical" ||
+           (p.effective_classification || p.classification) === "high"
+  ).length
+);
+
+const riskClass = computed(() => {
+  if (alertPatternCount.value === 0) return "risk-safe";
+  if (alertPatternCount.value <= 3) return "risk-warning";
+  return "risk-danger";
+});
+
+const riskLabel = computed(() => {
+  if (alertPatternCount.value === 0) return "SAFE";
+  if (alertPatternCount.value <= 3) return "CAUTION";
+  return "AT RISK";
+});
+
+const classIcon = (p: PatternItem) => p.effective_classification || p.classification || "pending";
+
+const patternLabel = (p: PatternItem) => {
+  if (p.title) return p.title.toUpperCase();
+  if (p.host && p.program) return `${p.host} / ${p.program}`.toUpperCase();
+  if (p.host) return p.host.toUpperCase();
+  if (p.program) return p.program.toUpperCase();
+  return p.pattern_text.substring(0, 40).toUpperCase();
+};
+
+const maxHits = computed(() => Math.max(1, ...patterns.value.map((p) => p.hit_count)));
+
+const barClass = (p: PatternItem, n: number) => {
+  const ratio = p.hit_count / maxHits.value;
+  const threshold = n / 12;
+  if (ratio >= threshold) {
+    const cls = p.effective_classification || p.classification;
+    if (cls === "critical") return "bar-lit bar-critical";
+    if (cls === "high") return "bar-lit bar-high";
+    if (cls === "medium") return "bar-lit bar-medium";
+    return "bar-lit bar-normal";
+  }
+  return "bar-dim";
+};
+
+const formatTime = (ts: string) => {
   try {
-    rules.value = await getRules();
+    return new Date(ts).toLocaleString();
+  } catch {
+    return ts;
+  }
+};
+
+const toggleExpand = (p: PatternItem) => {
+  if (expandedId.value === p.id) {
+    expandedId.value = null;
+  } else {
+    expandedId.value = p.id;
+    overrideValue.value = p.user_override || "";
+  }
+};
+
+const fetchPatterns = async () => {
+  try {
+    const data = await getPatterns({
+      limit: 200,
+      classification: classificationFilter.value || undefined,
+    });
+    patterns.value = data.items;
+    total.value = data.total;
     error.value = "";
   } catch {
-    error.value = "Backend unavailable. Check the Mite backend container.";
+    error.value = "Failed to load patterns.";
   }
 };
 
-const handleReload = async () => {
-  reloading.value = true;
-  reloadMessage.value = "";
+const saveOverride = async (id: number) => {
+  saving.value = true;
   try {
-    await reloadRules();
-    reloadMessage.value = "Rules reloaded successfully.";
-    reloadSuccess.value = true;
-    await fetchRules();
+    await updatePattern(id, { classification: overrideValue.value || undefined });
+    await fetchPatterns();
+    expandedId.value = null;
   } catch {
-    reloadMessage.value = "Failed to reload rules.";
-    reloadSuccess.value = false;
+    error.value = "Failed to update pattern.";
   } finally {
-    reloading.value = false;
+    saving.value = false;
   }
 };
 
-onMounted(fetchRules);
+onMounted(fetchPatterns);
 </script>
 
 <style scoped>
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-  gap: 12px;
+.patterns-page {
+  max-width: 720px;
 }
 
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0;
-  color: var(--text-primary);
-}
-
-.hint {
-  color: var(--text-secondary);
-  font-size: 13px;
-  margin: 0 0 16px;
-}
-
-.btn {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  font-size: 13px;
-  cursor: pointer;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  transition: background 0.15s;
-}
-
-.btn:hover {
-  background: var(--bg-hover);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: rgba(88, 166, 255, 0.15);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.table-wrapper {
+/* Risk Header */
+.risk-header {
   background: var(--bg-secondary);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  overflow-x: auto;
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  margin-bottom: 20px;
+  text-align: center;
 }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 10px 12px;
-  font-weight: 600;
+.risk-title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
   color: var(--text-secondary);
-  border-bottom: 1px solid var(--border);
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  white-space: nowrap;
+  margin: 0;
 }
 
-.data-table td {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--border);
-  color: var(--text-primary);
+.risk-value {
+  font-weight: 700;
 }
 
-.data-table tbody tr:last-child td {
-  border-bottom: none;
-}
-
-.data-table tbody tr:hover {
-  background: var(--bg-hover);
-}
-
-.error-row {
-  background: rgba(248, 81, 73, 0.05);
-}
-
-.dot-on {
+.risk-safe {
   color: var(--success);
 }
 
-.dot-off {
+.risk-warning {
+  color: var(--warning);
+}
+
+.risk-danger {
+  color: var(--danger);
+}
+
+/* Search */
+.search-row {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px 10px 38px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+
+.search-input::placeholder {
   color: var(--text-muted);
 }
 
-.rule-error {
-  color: var(--danger);
-  font-size: 11px;
-  margin-top: 4px;
+.search-input:focus {
+  border-color: var(--accent);
 }
 
-.reload-feedback {
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-size: 13px;
+/* Filter tabs */
+.filter-tabs {
+  display: flex;
+  gap: 4px;
   margin-bottom: 16px;
+  flex-wrap: wrap;
 }
 
-.feedback-success {
-  background: rgba(63, 185, 80, 0.1);
-  border: 1px solid var(--success);
+.filter-tab {
+  padding: 5px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: var(--font-sans);
+}
+
+.filter-tab:hover {
+  border-color: var(--border-light);
+  color: var(--text-primary);
+}
+
+.filter-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Pattern list */
+.pattern-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pattern-row {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  overflow: hidden;
+}
+
+.pattern-row:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-light);
+}
+
+.pattern-row.expanded {
+  border-color: var(--border-light);
+}
+
+.pattern-main {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+}
+
+/* Icon */
+.pattern-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.icon-critical {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.icon-high {
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
+}
+
+.icon-medium {
+  background: rgba(234, 179, 8, 0.15);
+  color: var(--warning);
+}
+
+.icon-low {
+  background: rgba(34, 197, 94, 0.12);
   color: var(--success);
 }
 
-.feedback-error {
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid var(--danger);
-  color: var(--danger);
+.icon-noise {
+  background: rgba(122, 138, 158, 0.12);
+  color: var(--text-muted);
+}
+
+.icon-pending {
+  background: rgba(59, 130, 246, 0.12);
+  color: var(--accent);
+}
+
+/* Pattern name */
+.pattern-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Activity bars */
+.activity-bars {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.bar {
+  width: 6px;
+  height: 20px;
+  border-radius: 1px;
+}
+
+.bar-dim {
+  background: var(--bg-tertiary);
+}
+
+.bar-lit.bar-normal {
+  background: var(--success);
+  box-shadow: 0 0 4px var(--success-glow);
+}
+
+.bar-lit.bar-medium {
+  background: var(--warning);
+  box-shadow: 0 0 4px rgba(234, 179, 8, 0.3);
+}
+
+.bar-lit.bar-high {
+  background: #f97316;
+  box-shadow: 0 0 4px rgba(249, 115, 22, 0.3);
+}
+
+.bar-lit.bar-critical {
+  background: var(--danger);
+  box-shadow: 0 0 4px var(--danger-glow);
+}
+
+/* Hit count */
+.hit-count {
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 32px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.count-active {
+  color: var(--text-primary);
+}
+
+.count-zero {
+  color: var(--text-muted);
+}
+
+/* Expanded detail */
+.pattern-detail {
+  padding: 0 16px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.detail-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.detail-value {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.override-tag {
+  display: inline-block;
+  font-size: 10px;
+  color: var(--warning);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.detail-explanation {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.explanation-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.detail-sample {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sample-code {
+  display: block;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.detail-override {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.override-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.override-select {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  flex: 1;
+  max-width: 200px;
+}
+
+.btn-sm {
+  padding: 5px 14px;
+  font-size: 12px;
+}
+
+/* Footer */
+.list-footer {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
 }
 </style>

@@ -34,22 +34,11 @@
                 :to="{ name: 'alerts', query: { host: host.host, source_ip: host.source_ip } }"
                 class="action-link"
               >Alerts</router-link>
-              <button
-                class="action-link action-btn"
-                :disabled="analyzing === host.id"
-                @click="analyzeHost(host)"
-              >
-                {{ analyzing === host.id ? 'Analyzing...' : 'AI Analyze' }}
-              </button>
             </td>
           </tr>
         </tbody>
       </table>
-      <EmptyState v-else message="No hosts discovered yet. Hosts will appear when syslog sources send data." icon="🖥" />
-    </div>
-
-    <div v-if="analyzeMessage" class="analyze-feedback" :class="analyzeSuccess ? 'feedback-success' : 'feedback-error'">
-      {{ analyzeMessage }}
+      <EmptyState v-else message="No hosts discovered yet. Hosts will appear when syslog sources send data." />
     </div>
   </div>
 </template>
@@ -57,40 +46,18 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { getHosts } from "@/services/hosts";
-import { runAnalysis } from "@/services/ai";
 import type { HostItem } from "@/types";
 import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
 import EmptyState from "@/components/EmptyState.vue";
 
 const hosts = ref<HostItem[]>([]);
 const error = ref("");
-const analyzing = ref<number | null>(null);
-const analyzeMessage = ref("");
-const analyzeSuccess = ref(false);
 
 const formatTime = (ts: string) => {
   try {
     return new Date(ts).toLocaleString();
   } catch {
     return ts;
-  }
-};
-
-const analyzeHost = async (host: HostItem) => {
-  analyzing.value = host.id;
-  analyzeMessage.value = "";
-  try {
-    await runAnalysis({
-      host: host.host,
-      source_ip: host.source_ip,
-    });
-    analyzeMessage.value = `AI analysis triggered for ${host.host || host.source_ip}`;
-    analyzeSuccess.value = true;
-  } catch {
-    analyzeMessage.value = `Failed to trigger AI analysis for ${host.host || host.source_ip}`;
-    analyzeSuccess.value = false;
-  } finally {
-    analyzing.value = null;
   }
 };
 

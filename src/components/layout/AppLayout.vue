@@ -1,234 +1,212 @@
 <template>
   <div class="app-layout">
-    <aside class="sidebar" :class="{ collapsed: sidebarCollapsed }">
-      <div class="sidebar-header">
-        <span class="logo">🔍</span>
-        <span class="logo-sub">mite</span>
-      </div>
-      <nav class="sidebar-nav">
-        <router-link
-          v-for="item in navItems"
-          :key="item.to"
-          :to="item.to"
-          class="nav-item"
-          :class="{ active: isActive(item.to) }"
-        >
-          <span class="nav-icon">{{ item.icon }}</span>
-          <span class="nav-label">{{ item.label }}</span>
-        </router-link>
-      </nav>
-    </aside>
-    <main class="main-content">
-      <header class="top-bar">
-        <button class="menu-toggle" @click="sidebarCollapsed = !sidebarCollapsed">
-          ☰
-        </button>
-        <div class="top-bar-right">
-          <span class="text-muted mono" style="font-size: 12px;">
-            {{ currentTime }}
-          </span>
+    <header class="top-nav">
+      <div class="nav-left">
+        <div class="brand">
+          <img src="@/assets/mite.png" alt="Mite" class="brand-icon" />
+          <span class="brand-name">Mite</span>
         </div>
-      </header>
-      <div class="page-content">
-        <router-view />
       </div>
+      <div class="nav-right">
+        <nav class="nav-links" :class="{ open: mobileMenuOpen }">
+          <router-link
+            v-for="item in navItems"
+            :key="item.to"
+            :to="item.to"
+            class="nav-link"
+            :class="{ active: isActive(item.to) }"
+            @click="mobileMenuOpen = false"
+          >
+            <svg class="nav-link-icon" viewBox="0 0 20 20" fill="currentColor">
+              <path :d="item.iconPath" />
+            </svg>
+            {{ item.label }}
+          </router-link>
+        </nav>
+        <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle menu">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
+            <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </header>
+    <main class="page-content">
+      <router-view />
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref } from "vue";
 import { useRoute } from "vue-router";
 
 const route = useRoute();
-const sidebarCollapsed = ref(false);
-const currentTime = ref("");
+const mobileMenuOpen = ref(false);
 
 const navItems = [
-  { to: "/", icon: "📊", label: "Dashboard" },
-  { to: "/logs", icon: "📜", label: "Live Logs" },
-  { to: "/alerts", icon: "🔔", label: "Alerts" },
-  { to: "/hosts", icon: "🖥", label: "Hosts" },
-  { to: "/rules", icon: "📋", label: "Rules" },
-  { to: "/ai", icon: "🤖", label: "AI Analysis" },
-  { to: "/settings", icon: "⚙", label: "Settings" },
+  { to: "/", label: "Dashboard", iconPath: "M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zm12-1a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" },
+  { to: "/logs", label: "Live Logs", iconPath: "M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" },
 ];
 
 const isActive = (to: string) => {
   if (to === "/") return route.path === "/";
   return route.path.startsWith(to);
 };
-
-let timer: ReturnType<typeof setInterval>;
-
-const updateTime = () => {
-  currentTime.value = new Date().toLocaleTimeString();
-};
-
-onMounted(() => {
-  updateTime();
-  timer = setInterval(updateTime, 1000);
-});
-
-onUnmounted(() => {
-  clearInterval(timer);
-});
-
-// Collapse sidebar on mobile by default
-const checkMobile = () => {
-  sidebarCollapsed.value = window.innerWidth < 768;
-};
-
-onMounted(() => {
-  checkMobile();
-  window.addEventListener("resize", checkMobile);
-});
-
-onUnmounted(() => {
-  window.removeEventListener("resize", checkMobile);
-});
 </script>
 
 <style scoped>
 .app-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
   width: 100%;
 }
 
-.sidebar {
-  width: var(--sidebar-width);
-  background: var(--bg-secondary);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  flex-shrink: 0;
-  transition: width 0.2s, transform 0.2s;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 100;
-}
-
-.sidebar.collapsed {
-  transform: translateX(-100%);
-}
-
-.sidebar-header {
-  padding: 20px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.logo {
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.logo-sub {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-family: var(--font-mono);
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  padding: 8px;
-  gap: 2px;
-  flex: 1;
-  overflow-y: auto;
-}
-
-.nav-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-size: 13px;
-  transition: background 0.15s, color 0.15s;
-}
-
-.nav-item:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.nav-item.active {
-  background: var(--bg-hover);
-  color: var(--accent);
-}
-
-.nav-icon {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
-}
-
-.main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin-left: var(--sidebar-width);
-  transition: margin-left 0.2s;
-  min-width: 0;
-}
-
-.sidebar.collapsed + .main-content {
-  margin-left: 0;
-}
-
-.top-bar {
+/* ── Top Navigation Bar ── */
+.top-nav {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid var(--border);
+  height: var(--topbar-height);
+  padding: 0 24px;
   background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  z-index: 50;
+  z-index: 100;
+  flex-shrink: 0;
 }
 
-.menu-toggle {
-  background: none;
-  border: none;
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.brand-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.brand-name {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.3px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
   color: var(--text-secondary);
-  font-size: 18px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 4px;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
-.menu-toggle:hover {
+.nav-link:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
+.nav-link.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.nav-link-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.clock {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* ── Main Content ── */
 .page-content {
-  padding: 24px;
+  padding: 28px;
   flex: 1;
   overflow-x: auto;
 }
 
-@media (max-width: 768px) {
-  .sidebar:not(.collapsed) {
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
+/* ── Mobile ── */
+@media (max-width: 900px) {
+  .mobile-menu-btn {
+    display: flex;
   }
 
-  .main-content {
-    margin-left: 0 !important;
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: var(--topbar-height);
+    left: 0;
+    right: 0;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-direction: column;
+    padding: 8px 16px;
+    gap: 2px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  }
+
+  .nav-links.open {
+    display: flex;
+  }
+
+  .nav-link {
+    padding: 10px 14px;
+    width: 100%;
   }
 
   .page-content {
-    padding: 16px;
+    padding: 20px;
   }
 }
 </style>

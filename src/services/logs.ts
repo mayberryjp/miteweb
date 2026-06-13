@@ -1,15 +1,18 @@
 import api from "./api";
-import type { LogItem } from "@/types";
+import type { LogItem, PaginatedResponse } from "@/types";
 
 export const getLogs = async (params?: {
   limit?: number;
+  offset?: number;
   host?: string;
   source_ip?: string;
   program?: string;
   severity?: string;
   search?: string;
+  start?: string;
+  end?: string;
 }) => {
-  const response = await api.get<LogItem[]>("/logs", { params });
+  const response = await api.get<PaginatedResponse<LogItem>>("/logs", { params });
   return response.data;
 };
 
