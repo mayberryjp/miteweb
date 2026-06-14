@@ -19,3 +19,8 @@ export const updatePattern = async (id: number, data: { classification?: string;
   const response = await api.put(`/patterns/${id}`, data);
   return response.data;
 };
+
+export const getPatternStats = async (hours: number = 12) => {
+  const response = await api.get<Record<string, { hour: string; count: number }[]>>("/patterns/stats", { params: { hours } });
+  return response.data;
+};

@@ -1,5 +1,5 @@
 import api from "./api";
-import type { LogItem, PaginatedResponse } from "@/types";
+import type { LogItem, PaginatedResponse, HourlyStat } from "@/types";
 
 export const getLogs = async (params?: {
   limit?: number;
@@ -22,4 +22,9 @@ export const getRecentLogs = async (params?: {
 }) => {
   const response = await api.get<LogItem[]>("/logs/recent", { params });
   return response.data;
+};
+
+export const getLogsHourly = async (hours = 24) => {
+  const response = await api.get<{ hours: number; stats: HourlyStat[] }>("/logs/hourly", { params: { hours } });
+  return response.data.stats;
 };

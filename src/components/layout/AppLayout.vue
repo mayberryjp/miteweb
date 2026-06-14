@@ -1,51 +1,84 @@
 <template>
-  <div class="app-layout">
-    <header class="top-nav">
-      <div class="nav-left">
-        <div class="brand">
-          <img src="@/assets/mite.png" alt="Mite" class="brand-icon" />
-          <span class="brand-name">Mite</span>
-        </div>
+  <v-app>
+    <!-- App Bar -->
+    <v-app-bar color="background-100" dark app elevation="0">
+      <!-- Product logo + name (left) -->
+      <router-link to="/" class="product-branding d-flex align-center text-decoration-none ms-2 ms-lg-8">
+        <img src="@/assets/mite.png" alt="Mite" width="48" height="48" class="mr-3" />
+        <span class="product-name text-h5">Mite
+          <span class="product-bar tagline">|</span>
+          <span class="know-your-network tagline">Know Your Network</span>
+        </span>
+      </router-link>
+
+      <v-spacer></v-spacer>
+
+      <!-- Desktop navigation -->
+      <div v-if="lgAndUp" class="d-flex align-center">
+        <v-btn
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          variant="text"
+          class="mx-2 nav-btn"
+          rounded
+          :color="isActive(item.to) ? 'rose' : ''"
+        >
+          <v-icon start>{{ item.icon }}</v-icon>
+          {{ item.label }}
+        </v-btn>
       </div>
-      <div class="nav-right">
-        <nav class="nav-links" :class="{ open: mobileMenuOpen }">
-          <router-link
-            v-for="item in navItems"
-            :key="item.to"
-            :to="item.to"
-            class="nav-link"
-            :class="{ active: isActive(item.to) }"
-            @click="mobileMenuOpen = false"
-          >
-            <svg class="nav-link-icon" viewBox="0 0 20 20" fill="currentColor">
-              <path :d="item.iconPath" />
-            </svg>
-            {{ item.label }}
-          </router-link>
-        </nav>
-        <button class="mobile-menu-btn" @click="mobileMenuOpen = !mobileMenuOpen" aria-label="Toggle menu">
-          <svg viewBox="0 0 20 20" fill="currentColor" width="20" height="20">
-            <path fill-rule="evenodd" d="M3 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 5a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd" />
-          </svg>
-        </button>
-      </div>
-    </header>
-    <main class="page-content">
-      <router-view />
-    </main>
-  </div>
+
+      <!-- Mobile hamburger -->
+      <v-app-bar-nav-icon
+        v-if="!lgAndUp"
+        aria-label="Open navigation menu"
+        @click="mobileMenuOpen = !mobileMenuOpen"
+      ></v-app-bar-nav-icon>
+    </v-app-bar>
+
+    <!-- Mobile navigation drawer -->
+    <v-navigation-drawer
+      v-model="mobileMenuOpen"
+      temporary
+      location="right"
+      color="background-100"
+    >
+      <v-list density="comfortable" nav>
+        <v-list-item
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          :prepend-icon="item.icon"
+          :title="item.label"
+          :active="isActive(item.to)"
+          color="rose"
+          @click="mobileMenuOpen = false"
+        ></v-list-item>
+      </v-list>
+    </v-navigation-drawer>
+
+    <!-- Main Content -->
+    <v-main>
+      <v-container fluid class="pa-3 pa-sm-4 pa-lg-6">
+        <router-view />
+      </v-container>
+    </v-main>
+  </v-app>
 </template>
 
 <script setup lang="ts">
 import { ref } from "vue";
 import { useRoute } from "vue-router";
+import { useDisplay } from "vuetify";
 
 const route = useRoute();
 const mobileMenuOpen = ref(false);
+const { lgAndUp } = useDisplay();
 
 const navItems = [
-  { to: "/", label: "Dashboard", iconPath: "M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 6a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zm12-1a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" },
-  { to: "/logs", label: "Live Logs", iconPath: "M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" },
+  { to: "/", label: "Dashboard", icon: "mdi-view-dashboard" },
+  { to: "/logs", label: "Live Logs", icon: "mdi-file-document-outline" },
 ];
 
 const isActive = (to: string) => {
@@ -55,158 +88,62 @@ const isActive = (to: string) => {
 </script>
 
 <style scoped>
-.app-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  width: 100%;
+.v-app-bar {
+  border-bottom: 0px !important;
+  box-shadow: none !important;
 }
 
-/* ── Top Navigation Bar ── */
-.top-nav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: var(--topbar-height);
-  padding: 0 24px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  flex-shrink: 0;
+.product-branding {
+  margin-top: 5px;
+  height: 48px;
 }
 
-.nav-left {
-  display: flex;
-  align-items: center;
-  gap: 32px;
+.nav-btn {
+  text-transform: capitalize;
+  color: #b1b8c0;
+  font-size: 16px !important;
+  font-weight: 400;
+  letter-spacing: 0em !important;
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.brand-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 6px;
-  object-fit: contain;
-}
-
-.brand-name {
-  font-size: 22px;
+.product-name {
+  color: #2EC4A0;
   font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.3px;
-}
-
-.nav-links {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: var(--radius);
-  color: var(--text-secondary);
-  text-decoration: none;
-  font-size: 15px;
-  font-weight: 500;
-  transition: all 0.15s ease;
+  font-size: 1.5rem !important;
+  text-align: start;
+  line-height: 1.4;
+  letter-spacing: 0.05em !important;
   white-space: nowrap;
 }
 
-.nav-link:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+.product-bar {
+  color: #2196F3;
+  font-weight: 700;
+  line-height: 1.4;
+  margin-right: 8px;
+  letter-spacing: 0.05em !important;
 }
 
-.nav-link.active {
-  background: var(--accent);
-  color: #fff;
+.know-your-network {
+  color: #64B5F6;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.05em !important;
 }
 
-.nav-link-icon {
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.clock {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.mobile-menu-btn {
+/* Tagline hidden by default; shown only >= 1500px */
+.tagline {
   display: none;
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
-  align-items: center;
-  justify-content: center;
 }
 
-.mobile-menu-btn:hover {
-  background: var(--bg-hover);
-  color: var(--text-primary);
+@media (min-width: 1500px) {
+  .tagline {
+    display: inline;
+  }
 }
 
-/* ── Main Content ── */
-.page-content {
-  padding: 28px;
-  flex: 1;
-  overflow-x: auto;
-}
-
-/* ── Mobile ── */
-@media (max-width: 900px) {
-  .mobile-menu-btn {
-    display: flex;
-  }
-
-  .nav-links {
-    display: none;
-    position: absolute;
-    top: var(--topbar-height);
-    left: 0;
-    right: 0;
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border);
-    flex-direction: column;
-    padding: 8px 16px;
-    gap: 2px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
-  }
-
-  .nav-links.open {
-    display: flex;
-  }
-
-  .nav-link {
-    padding: 10px 14px;
-    width: 100%;
-  }
-
-  .page-content {
-    padding: 20px;
-  }
+.v-main {
+  background-color: #0a0e14;
+  color: rgba(255, 255, 255, 0.87);
 }
 </style>

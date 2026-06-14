@@ -1,12 +1,5 @@
 <template>
   <div class="patterns-page">
-    <!-- Risk Header -->
-    <div class="risk-header">
-      <h1 class="risk-title">
-        PATTERNS:
-        <span class="risk-value" :class="riskClass">{{ riskLabel }} ({{ alertPatternCount }})</span>
-      </h1>
-    </div>
 
     <!-- Search -->
     <div class="search-row">
@@ -38,8 +31,17 @@
 
     <!-- Pattern list -->
     <div class="pattern-list">
+      <div v-for="group in groupedPatterns" :key="group.classification" class="classification-group">
+        <div class="group-header" :class="'group-' + group.classification" @click="toggleGroup(group.classification)">
+          <svg class="chevron" :class="{ collapsed: collapsedGroups[group.classification] }" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+            <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+          </svg>
+          <span class="group-label">{{ group.label }}</span>
+          <span class="group-count">{{ group.patterns.length }}</span>
+        </div>
+        <div v-show="!collapsedGroups[group.classification]" class="group-body">
       <div
-        v-for="p in filteredPatterns"
+            v-for="p in group.patterns"
         :key="p.id"
         class="pattern-row"
         :class="{ expanded: expandedId === p.id }"
@@ -126,6 +128,8 @@
             </div>
           </div>
         </div>
+        </div>
+      </div>
       </div>
 
       <EmptyState v-if="!filteredPatterns.length && !error" message="No patterns match your search." />
@@ -154,6 +158,29 @@ const expandedId = ref<number | null>(null);
 const overrideValue = ref("");
 const saving = ref(false);
 
+const classificationOrder = ["critical", "high", "medium", "low", "noise", "pending"] as const;
+const classificationLabels: Record<string, string> = {
+  critical: "Critical",
+  high: "High",
+  medium: "Medium",
+  low: "Low",
+  noise: "Noise",
+  pending: "Pending",
+};
+
+const collapsedGroups = ref<Record<string, boolean>>({
+  critical: false,
+  high: false,
+  medium: true,
+  low: true,
+  noise: true,
+  pending: true,
+});
+
+const toggleGroup = (cls: string) => {
+  collapsedGroups.value[cls] = !collapsedGroups.value[cls];
+};
+
 const filters = [
   { label: "All", value: "" },
   { label: "Critical", value: "critical" },
@@ -174,6 +201,29 @@ const filteredPatterns = computed(() => {
       (p.host || "").toLowerCase().includes(q) ||
       (p.program || "").toLowerCase().includes(q)
   );
+});
+
+const groupedPatterns = computed(() => {
+  const groups: { classification: string; label: string; patterns: PatternItem[] }[] = [];
+  const map = new Map<string, PatternItem[]>();
+  for (const p of filteredPatterns.value) {
+    const cls = p.effective_classification || p.classification || "pending";
+    if (!map.has(cls)) map.set(cls, []);
+    map.get(cls)!.push(p);
+  }
+  for (const cls of classificationOrder) {
+    const items = map.get(cls);
+    if (items && items.length) {
+      groups.push({ classification: cls, label: classificationLabels[cls] || cls, patterns: items });
+    }
+  }
+  // Include any classifications not in the predefined order
+  for (const [cls, items] of map) {
+    if (!classificationOrder.includes(cls as any) && items.length) {
+      groups.push({ classification: cls, label: cls, patterns: items });
+    }
+  }
+  return groups;
 });
 
 const alertPatternCount = computed(() =>
@@ -380,6 +430,68 @@ onMounted(fetchPatterns);
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+/* Classification groups */
+.classification-group {
+  margin-bottom: 8px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s;
+}
+
+.group-header:hover {
+  background: var(--bg-hover);
+}
+
+.chevron {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: transform 0.2s ease;
+}
+
+.chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.group-label {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.group-critical .group-label { color: var(--danger); }
+.group-high .group-label { color: #f97316; }
+.group-medium .group-label { color: var(--warning); }
+.group-low .group-label { color: var(--success); }
+.group-noise .group-label { color: var(--text-muted); }
+.group-pending .group-label { color: var(--accent); }
+
+.group-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-secondary);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+
+.group-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
 }
 
 .pattern-row {

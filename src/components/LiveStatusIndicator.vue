@@ -1,43 +1,39 @@
 <template>
-  <div class="live-status">
-    <span class="dot" :class="status"></span>
-    <span class="label">{{ status.charAt(0).toUpperCase() + status.slice(1) }}</span>
+  <div class="d-inline-flex align-center ga-1">
+    <span class="status-dot" :class="status"></span>
+    <span class="text-caption font-weight-bold text-uppercase" :class="'text-' + dotColor">{{ status }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
-defineProps<{ status: "live" | "paused" | "disconnected" }>();
+import { computed } from "vue";
+
+const props = defineProps<{ status: "live" | "paused" | "disconnected" }>();
+
+const dotColor = computed(() => {
+  if (props.status === "live") return "success";
+  if (props.status === "paused") return "warning";
+  return "error";
+});
 </script>
 
 <style scoped>
-.live-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.dot {
+.status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
 }
-.dot.live {
-  background: var(--success);
-  box-shadow: 0 0 6px var(--success);
+.status-dot.live {
+  background: rgb(var(--v-theme-success));
+  box-shadow: 0 0 6px rgb(var(--v-theme-success));
   animation: pulse 2s infinite;
 }
-.dot.paused {
-  background: var(--warning);
+.status-dot.paused {
+  background: rgb(var(--v-theme-warning));
 }
-.dot.disconnected {
-  background: var(--danger);
+.status-dot.disconnected {
+  background: rgb(var(--v-theme-error));
 }
-.live { color: var(--success); }
-.paused { color: var(--warning); }
-.disconnected { color: var(--danger); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }

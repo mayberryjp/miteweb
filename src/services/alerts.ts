@@ -1,5 +1,5 @@
 import api from "./api";
-import type { AlertItem, PaginatedResponse } from "@/types";
+import type { AlertItem, PaginatedResponse, HourlyStat } from "@/types";
 
 export const getAlerts = async (params?: {
   limit?: number;
@@ -12,4 +12,9 @@ export const getAlerts = async (params?: {
 }) => {
   const response = await api.get<PaginatedResponse<AlertItem>>("/alerts", { params });
   return response.data;
+};
+
+export const getAlertsHourly = async (hours = 24) => {
+  const response = await api.get<{ hours: number; stats: HourlyStat[] }>("/alerts/hourly", { params: { hours } });
+  return response.data.stats;
 };

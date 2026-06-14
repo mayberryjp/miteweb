@@ -1,4 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #0a0e14;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* Colors */
   --bg-primary: #0a0e14;
   --bg-secondary: #111820;
   --bg-tertiary: #171e28;
@@ -28,55 +44,39 @@
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
 
-  --sidebar-width: 0px;
-  --topbar-height: 52px;
+  --topbar-height: 64px;
   --radius: 8px;
   --radius-lg: 12px;
 
-  font-family: var(--font-sans);
-  font-size: 17px;
-  line-height: 1.65;
-  color: var(--text-primary);
-  background-color: var(--bg-primary);
-  color-scheme: dark;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-
-* {
-  box-sizing: border-box;
+  /* Shared system font stack (matches sando) */
+  --app-font-family: BlinkMacSystemFont, "segoe ui", Roboto, "helvetica neue",
+    Arial, "noto sans", sans-serif, "apple color emoji", "segoe ui emoji",
+    "segoe ui symbol", "noto color emoji";
 }
 
 body {
   margin: 0;
+  display: flex;
+  min-width: 320px;
   min-height: 100vh;
 }
 
 #app {
+  width: 100%;
+  flex-grow: 1;
   display: flex;
-  min-height: 100vh;
+  flex-direction: column;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Custom Scrollbar */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #4a5568 #1a202c;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: var(--border-light);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
+.custom-scrollbar::-webkit-scrollbar { width: 8px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: #1a202c; border-radius: 4px; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #4a5568; border-radius: 4px; transition: background-color 0.2s ease; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #718096; }
 
 /* Utility classes */
 .mono {
