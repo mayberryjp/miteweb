@@ -35,7 +35,7 @@
                     </div>
 
                     <!-- Pattern Info -->
-                    <div class="pattern-title">
+                    <div class="pattern-title flex-grow-1">
                       <h2 class="text-grey custom-heading">
                         {{ patternLabel(pattern) }}
                       </h2>
@@ -43,6 +43,22 @@
                         {{ pattern.ai_explanation }}
                       </div>
                     </div>
+                  </div>
+
+                  <!-- Action Buttons -->
+                  <div class="pattern-actions">
+                    <v-btn-group variant="outlined" class="rounded-pill pattern-actions-group">
+                      <v-btn
+                        color="error"
+                        @click="deletePatternDialog = true"
+                        :loading="deletingPattern"
+                        density="comfortable"
+                        class="text-body-2"
+                      >
+                        <v-icon icon="mdi-delete" class="mr-2"></v-icon>
+                        Delete Pattern
+                      </v-btn>
+                    </v-btn-group>
                   </div>
                 </div>
               </v-card-text>
@@ -164,13 +180,32 @@
         </transition>
       </v-col>
     </v-row>
+
+    <!-- Delete Pattern Confirmation Dialog -->
+    <v-dialog v-model="deletePatternDialog" max-width="500">
+      <v-card>
+        <v-card-title class="text-h5">Delete Pattern</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete this pattern? This will also delete all associated stats, alerts, and logs. This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="deletePatternDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="error" variant="text" @click="handleDeletePattern">
+            Delete
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getPatterns, updatePattern, getPatternStats, getPatternTimeSeries, getPatternLogs } from "@/services/rules";
+import { getPatterns, updatePattern, getPatternStats, getPatternTimeSeries, getPatternLogs, deletePattern } from "@/services/rules";
 import type { PatternItem, HourlyStat, LogItem } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import PatternList from "@/components/PatternList.vue";
@@ -194,6 +229,8 @@ const copyLabel = ref("Copy");
 const snackbar = ref(false);
 const regexExpanded = ref(false);
 const aiExpanded = ref(false);
+const deletingPattern = ref(false);
+const deletePatternDialog = ref(false);
 
 const patternLogStats = ref<HourlyStat[]>([]);
 const patternAlertStats = ref<HourlyStat[]>([]);
@@ -335,6 +372,21 @@ const saveRegex = async (id: number) => {
   try { await updatePattern(id, { match_regex: regexValue.value }); await fetchPatterns(); }
   catch { error.value = "Failed to update regex."; }
   finally { savingRegex.value = false; }
+};
+
+const handleDeletePattern = async () => {
+  if (!pattern.value) return;
+  deletingPattern.value = true;
+  try {
+    await deletePattern(pattern.value.id);
+    deletePatternDialog.value = false;
+    await fetchPatterns();
+    router.push({ name: "dashboard" });
+  } catch {
+    error.value = "Failed to delete pattern.";
+  } finally {
+    deletingPattern.value = false;
+  }
 };
 
 const formatTime = (ts: string) => {
@@ -508,5 +560,32 @@ watch(patternId, async (newId) => {
     overflow-y: auto;
     height: calc(100vh - 80px);
   }
+}
+
+.pattern-actions {
+  display: flex;
+  align-items: center;
+}
+
+/* Let the outlined button group wrap instead of overflowing on narrow screens */
+.pattern-actions-group {
+  height: auto !important;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.pattern-actions-group > .v-btn {
+  margin-left: 0 !important;
+}
+
+.pattern-actions .v-btn-group {
+  background-color: #0d1117;
+  border: 1px solid #0d1117 !important;
+}
+
+.pattern-actions .v-btn {
+  text-transform: none;
+  font-weight: 400;
 }
 </style>

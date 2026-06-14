@@ -36,3 +36,8 @@ export const getPatternLogs = async (patternId: number, params?: { limit?: numbe
   const response = await api.get<PaginatedResponse<LogItem>>(`/patterns/${patternId}/logs`, { params });
   return response.data;
 };
+
+export const deletePattern = async (id: number) => {
+  const response = await api.delete(`/patterns/${id}`);
+  return response.data;
+};

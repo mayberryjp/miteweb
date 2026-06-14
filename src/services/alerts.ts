@@ -23,3 +23,8 @@ export const deleteAllAlerts = async () => {
   const response = await api.delete("/alerts");
   return response.data;
 };
+
+export const deleteAlert = async (id: number) => {
+  const response = await api.delete(`/alerts/${id}`);
+  return response.data;
+};

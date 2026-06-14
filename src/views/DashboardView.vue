@@ -69,6 +69,7 @@
                 <th style="width: 120px;">Source</th>
                 <th style="width: 100px;">Pattern #</th>
                 <th>Message</th>
+                <th style="width: 50px;">Delete</th>
               </tr>
             </thead>
             <tbody>
@@ -83,6 +84,17 @@
                   :style="!expandedAlerts.has(a.id) ? 'max-width: 400px; cursor: pointer;' : 'cursor: pointer;'"
                   @click="toggleAlert(a.id)"
                 >{{ a.message }}</td>
+                <td class="text-center">
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="x-small"
+                    color="error"
+                    @click.stop="handleDeleteAlert(a.id)"
+                  >
+                    <v-icon size="small">mdi-close</v-icon>
+                  </v-btn>
+                </td>
               </tr>
             </tbody>
           </v-table>
@@ -97,7 +109,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { getHealth, getStats } from "@/services/system";
-import { getAlerts, getAlertsHourly } from "@/services/alerts";
+import { getAlerts, getAlertsHourly, deleteAlert } from "@/services/alerts";
 import { getLogsHourly } from "@/services/logs";
 import { getPatterns, getPatternStats } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, PatternItem, HourlyStat } from "@/types";
@@ -162,6 +174,15 @@ const toggleAlert = (id: number) => {
   if (expandedAlerts.value.has(id)) expandedAlerts.value.delete(id);
   else expandedAlerts.value.add(id);
   expandedAlerts.value = new Set(expandedAlerts.value);
+};
+
+const handleDeleteAlert = async (id: number) => {
+  try {
+    await deleteAlert(id);
+    alerts.value = alerts.value.filter((a) => a.id !== id);
+  } catch {
+    console.error("Failed to delete alert", id);
+  }
 };
 
 const selectPattern = (p: PatternItem) => {
