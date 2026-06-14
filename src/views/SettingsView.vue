@@ -1,87 +1,189 @@
 <template>
-  <div class="settings-page">
-    <h1 class="page-title">Settings</h1>
+  <v-sheet class="settings-container" color="#0d1117">
+    <v-row no-gutters>
+      <!-- Left side tabs — vertical on desktop (lg+), horizontal scrollable on
+           phones & tablets (< lg) so the rail doesn't squeeze the form. -->
+      <v-col cols="12" lg="3">
+        <v-tabs
+          v-model="activeTab"
+          :direction="lgAndUp ? 'vertical' : 'horizontal'"
+          :show-arrows="!lgAndUp"
+          color="primary"
+        >
+          <v-tab value="health">BACKEND HEALTH</v-tab>
+          <v-tab value="actions">ACTIONS</v-tab>
+        </v-tabs>
+      </v-col>
 
-    <ApiErrorBanner v-if="error" :message="error" />
+      <!-- Right side content -->
+      <v-col cols="12" lg="9">
+        <v-card-text>
+          <v-window v-model="activeTab">
+            <!-- Backend Health -->
+            <v-window-item value="health">
+              <h3>Backend Health</h3>
+              <v-divider class="my-4"></v-divider>
 
-    <!-- Backend Health -->
-    <section class="settings-section">
-      <h2 class="section-title">Backend Health</h2>
-      <div class="settings-card">
-        <div class="setting-row">
-          <span class="setting-label">Status</span>
-          <StatusBadge :status="health?.status === 'ok' ? 'ok' : 'error'" :label="health?.status || 'unknown'" />
-        </div>
-        <div v-if="health?.uptime" class="setting-row">
-          <span class="setting-label">Uptime</span>
-          <span class="setting-value mono">{{ formatUptime(health.uptime) }}</span>
-        </div>
-        <div v-if="health?.version" class="setting-row">
-          <span class="setting-label">Version</span>
-          <span class="setting-value mono">{{ health.version }}</span>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label">API Base URL</span>
-          <span class="setting-value mono">{{ apiBaseUrl }}</span>
-        </div>
-        <button class="btn" :disabled="refreshing" @click="refreshHealth">
-          {{ refreshing ? 'Refreshing...' : 'Refresh Health' }}
-        </button>
-      </div>
-    </section>
+              <v-table density="compact" class="rounded-lg" style="background-color: #0d1117;">
+                <tbody>
+                  <tr>
+                    <td class="text-medium-emphasis">Status</td>
+                    <td><StatusBadge :status="health?.status === 'ok' ? 'ok' : 'error'" :label="health?.status || 'unknown'" /></td>
+                  </tr>
+                  <tr v-if="health?.uptime">
+                    <td class="text-medium-emphasis">Uptime</td>
+                    <td class="font-weight-medium">{{ formatUptime(health.uptime) }}</td>
+                  </tr>
+                  <tr v-if="health?.version">
+                    <td class="text-medium-emphasis">Version</td>
+                    <td class="font-weight-medium">{{ health.version }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-medium-emphasis">API Base URL</td>
+                    <td class="font-weight-medium">{{ apiBaseUrl }}</td>
+                  </tr>
+                  <tr v-if="stats?.database_size_bytes != null">
+                    <td class="text-medium-emphasis">Database Size</td>
+                    <td class="font-weight-medium">{{ formatBytes(stats.database_size_bytes) }}</td>
+                  </tr>
+                  <tr v-if="stats?.logs_last_hour != null">
+                    <td class="text-medium-emphasis">Logs Last Hour</td>
+                    <td class="font-weight-medium">{{ stats.logs_last_hour.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.logs_last_24h != null">
+                    <td class="text-medium-emphasis">Logs Last 24h</td>
+                    <td class="font-weight-medium">{{ stats.logs_last_24h.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.alerts_last_hour != null">
+                    <td class="text-medium-emphasis">Alerts Last Hour</td>
+                    <td class="font-weight-medium">{{ stats.alerts_last_hour.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.alerts_last_24h != null">
+                    <td class="text-medium-emphasis">Alerts Last 24h</td>
+                    <td class="font-weight-medium">{{ stats.alerts_last_24h.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.total_patterns != null">
+                    <td class="text-medium-emphasis">Total Patterns</td>
+                    <td class="font-weight-medium">{{ stats.total_patterns.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.pending_patterns != null">
+                    <td class="text-medium-emphasis">Pending Patterns</td>
+                    <td class="font-weight-medium">{{ stats.pending_patterns.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.ai_api_calls_24h != null">
+                    <td class="text-medium-emphasis">AI API Calls (24h)</td>
+                    <td class="font-weight-medium">{{ stats.ai_api_calls_24h.toLocaleString() }}</td>
+                  </tr>
+                </tbody>
+              </v-table>
 
-    <!-- Configuration Status -->
-    <section class="settings-section">
-      <h2 class="section-title">Configuration</h2>
-      <div class="settings-card">
-        <div class="setting-row">
-          <span class="setting-label">AI Discovery</span>
-          <span class="setting-value">{{ stats?.ai_enabled ? 'Enabled' : 'Disabled' }}</span>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label">Total Patterns</span>
-          <span class="setting-value mono">{{ stats?.total_patterns ?? '—' }}</span>
-        </div>
-        <div class="setting-row">
-          <span class="setting-label">Pending Patterns</span>
-          <span class="setting-value mono">{{ stats?.pending_patterns ?? '—' }}</span>
-        </div>
-        <div v-if="stats?.database_size_bytes" class="setting-row">
-          <span class="setting-label">Database Size</span>
-          <span class="setting-value mono">{{ formatBytes(stats.database_size_bytes) }}</span>
-        </div>
-      </div>
-    </section>
+              <v-btn
+                class="mt-4"
+                variant="outlined"
+                color="primary"
+                :loading="refreshing"
+                @click="refreshHealth"
+              >
+                Refresh Health
+              </v-btn>
+            </v-window-item>
 
-    <!-- Actions -->
-    <section class="settings-section">
-      <h2 class="section-title">Actions</h2>
-      <div class="settings-card">
-        <div class="action-group">
-          <button class="btn btn-primary" :disabled="testingDiscord" @click="handleTestDiscord">
-            {{ testingDiscord ? 'Sending...' : 'Test Discord Webhook' }}
-          </button>
-        </div>
-        <div v-if="actionMessage" class="action-feedback" :class="actionSuccess ? 'feedback-success' : 'feedback-error'">
-          {{ actionMessage }}
-        </div>
-      </div>
-    </section>
-  </div>
+            <!-- Actions -->
+            <v-window-item value="actions">
+              <h3>Actions</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <div class="maintenance-actions">
+                <div class="maintenance-action mb-6">
+                  <v-btn
+                    color="primary"
+                    variant="elevated"
+                    min-width="260"
+                    elevation="2"
+                    prepend-icon="mdi-webhook"
+                    :loading="testingDiscord"
+                    @click="handleTestDiscord"
+                  >
+                    Test Discord Webhook
+                  </v-btn>
+                  <p class="text-body-2 mt-2">
+                    Sends a test message to the configured Discord webhook.
+                  </p>
+                </div>
+
+                <div class="maintenance-action">
+                  <v-btn
+                    color="error"
+                    variant="elevated"
+                    min-width="260"
+                    elevation="2"
+                    prepend-icon="mdi-delete-alert"
+                    :loading="deletingAlerts"
+                    @click="deleteAlertsDialog = true"
+                  >
+                    Delete All Alerts
+                  </v-btn>
+                  <p class="text-body-2 mt-2">
+                    This will permanently delete all alert data from the system. This
+                    action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <v-alert
+                v-if="actionMessage"
+                :type="actionSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="actionMessage = ''"
+              >
+                {{ actionMessage }}
+              </v-alert>
+            </v-window-item>
+          </v-window>
+        </v-card-text>
+      </v-col>
+    </v-row>
+    <!-- Delete Alerts Confirmation Dialog -->
+    <v-dialog v-model="deleteAlertsDialog" max-width="500">
+      <v-card>
+        <v-card-title class="text-h5">Delete All Alerts</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete all alerts? This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="deleteAlertsDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="error" variant="text" @click="handleDeleteAllAlerts">
+            Delete All
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+  </v-sheet>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
+import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord } from "@/services/system";
+import { deleteAllAlerts } from "@/services/alerts";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
-import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
 
+const { lgAndUp } = useDisplay();
+
+const activeTab = ref("health");
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
 const error = ref("");
 const refreshing = ref(false);
 const testingDiscord = ref(false);
+const deletingAlerts = ref(false);
+const deleteAlertsDialog = ref(false);
 const actionMessage = ref("");
 const actionSuccess = ref(false);
 
@@ -134,106 +236,50 @@ const handleTestDiscord = async () => {
   }
 };
 
+const handleDeleteAllAlerts = async () => {
+  deletingAlerts.value = true;
+  actionMessage.value = "";
+  try {
+    await deleteAllAlerts();
+    actionMessage.value = "All alerts have been successfully deleted.";
+    actionSuccess.value = true;
+    await fetchData();
+  } catch {
+    actionMessage.value = "Failed to delete alerts. Please try again.";
+    actionSuccess.value = false;
+  } finally {
+    deletingAlerts.value = false;
+    deleteAlertsDialog.value = false;
+  }
+};
+
 onMounted(fetchData);
 </script>
 
 <style scoped>
-.page-title {
-  font-size: 20px;
-  font-weight: 600;
-  margin: 0 0 20px;
-  color: var(--text-primary);
+.settings-container {
+  height: 100%;
 }
 
-.settings-section {
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 12px;
-  color: var(--text-primary);
-}
-
-.settings-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 16px;
-}
-
-.setting-row {
+.maintenance-actions {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
+  flex-direction: column;
+  max-width: 500px;
 }
 
-.setting-row:last-of-type {
-  border-bottom: none;
-  margin-bottom: 12px;
-}
-
-.setting-label {
-  color: var(--text-secondary);
-  font-size: 13px;
-}
-
-.setting-value {
-  color: var(--text-primary);
-  font-size: 13px;
-}
-
-.action-group {
+.maintenance-action {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.btn {
-  padding: 6px 14px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  font-size: 13px;
-  cursor: pointer;
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
-  transition: background 0.15s;
+.settings-container :deep(.v-card-text) {
+  padding: 8px 0 0;
 }
 
-.btn:hover {
-  background: var(--bg-hover);
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: rgba(88, 166, 255, 0.15);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-
-.action-feedback {
-  margin-top: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-}
-
-.feedback-success {
-  background: rgba(63, 185, 80, 0.1);
-  border: 1px solid var(--success);
-  color: var(--success);
-}
-
-.feedback-error {
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid var(--danger);
-  color: var(--danger);
+@media (min-width: 1280px) {
+  .settings-container :deep(.v-card-text) {
+    padding: 16px 0 0 16px;
+  }
 }
 </style>

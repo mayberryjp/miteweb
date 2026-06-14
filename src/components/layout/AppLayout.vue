@@ -18,18 +18,18 @@
         <v-btn
           v-for="item in navItems"
           :key="item.to"
-          :to="item.to"
+          :to="item.external ? undefined : item.to"
+          :href="item.external ? item.to : undefined"
+          :target="item.external ? '_blank' : undefined"
           variant="text"
           class="mx-2 nav-btn"
           rounded
-          :color="isActive(item.to) ? 'rose' : ''"
+          :color="!item.external && isActive(item.to) ? 'rose' : ''"
         >
           <v-icon start>{{ item.icon }}</v-icon>
           {{ item.label }}
         </v-btn>
       </div>
-
-      <!-- Mobile hamburger -->
       <v-app-bar-nav-icon
         v-if="!lgAndUp"
         aria-label="Open navigation menu"
@@ -48,10 +48,12 @@
         <v-list-item
           v-for="item in navItems"
           :key="item.to"
-          :to="item.to"
+          :to="item.external ? undefined : item.to"
+          :href="item.external ? item.to : undefined"
+          :target="item.external ? '_blank' : undefined"
           :prepend-icon="item.icon"
           :title="item.label"
-          :active="isActive(item.to)"
+          :active="!item.external && isActive(item.to)"
           color="rose"
           @click="mobileMenuOpen = false"
         ></v-list-item>
@@ -79,6 +81,8 @@ const { lgAndUp } = useDisplay();
 const navItems = [
   { to: "/", label: "Dashboard", icon: "mdi-view-dashboard" },
   { to: "/logs", label: "Live Logs", icon: "mdi-file-document-outline" },
+  { to: "https://github.com/mayberryjp/mite/issues", label: "Requests & Roadmap", icon: "mdi-map-marker-path", external: true },
+  { to: "/settings", label: "Settings", icon: "mdi-cog" },
 ];
 
 const isActive = (to: string) => {

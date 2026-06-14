@@ -224,7 +224,7 @@ const fetchChartData = async () => {
   chartLoading.value = true;
   chartError.value = false;
   try {
-    const [logs, alerts] = await Promise.all([getLogsHourly(24), getAlertsHourly(24)]);
+    const [logs, alerts] = await Promise.all([getLogsHourly(100), getAlertsHourly(100)]);
     hourlyLogs.value = logs;
     hourlyAlerts.value = alerts;
   } catch {

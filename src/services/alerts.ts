@@ -18,3 +18,8 @@ export const getAlertsHourly = async (hours = 24) => {
   const response = await api.get<{ hours: number; stats: HourlyStat[] }>("/alerts/hourly", { params: { hours } });
   return response.data.stats;
 };
+
+export const deleteAllAlerts = async () => {
+  const response = await api.delete("/alerts");
+  return response.data;
+};
