@@ -13,6 +13,14 @@
         clearable
         @click:clear="searchTerm = ''"
       ></v-text-field>
+      <v-checkbox
+        v-model="showInactive"
+        density="compact"
+        hide-details
+        color="primary"
+        label="Show inactive"
+        class="mt-2"
+      ></v-checkbox>
     </div>
 
     <!-- Classification groups -->
@@ -27,7 +35,7 @@
           <div class="d-flex align-center w-100">
             <v-icon
               size="16"
-              :class="{ 'chevron-collapsed': collapsedGroups[group.classification] }"
+              :class="{ 'chevron-collapsed': collapsedGroups[group.classification] !== false }"
               class="chevron-icon mr-2"
             >mdi-chevron-down</v-icon>
             <span class="group-label">{{ group.label }}</span>
@@ -36,7 +44,7 @@
         </v-list-item>
 
         <!-- Pattern items -->
-        <template v-if="!collapsedGroups[group.classification]">
+        <template v-if="collapsedGroups[group.classification] === false">
           <v-list-item
             v-for="p in group.patterns"
             :key="p.id"
@@ -90,15 +98,22 @@ const sortedPatterns = computed(() =>
     const ca = severityOrder[a.effective_classification || a.classification] ?? 6;
     const cb = severityOrder[b.effective_classification || b.classification] ?? 6;
     if (ca !== cb) return ca - cb;
-    return b.hit_count - a.hit_count;
+    return get12hCount(b.id) - get12hCount(a.id);
   })
 );
 
+const showInactive = ref(false);
+
 const filteredPatterns = computed(() => {
-  if (!searchTerm.value) return sortedPatterns.value;
+  let base = sortedPatterns.value;
+  if (!showInactive.value && !searchTerm.value) {
+    base = base.filter((p) => get12hCount(p.id) > 0);
+  }
+  if (!searchTerm.value) return base;
   const q = searchTerm.value.toLowerCase();
-  return sortedPatterns.value.filter(
+  return base.filter(
     (p) =>
+      String(p.id).includes(q) ||
       p.pattern_text.toLowerCase().includes(q) ||
       (p.host || "").toLowerCase().includes(q) ||
       (p.program || "").toLowerCase().includes(q)
@@ -117,14 +132,14 @@ const collapsedGroups = ref<Record<string, boolean>>({
 });
 
 const toggleGroup = (cls: string) => {
-  collapsedGroups.value[cls] = !collapsedGroups.value[cls];
+  collapsedGroups.value[cls] = collapsedGroups.value[cls] === false;
 };
 
 const groupedPatterns = computed(() => {
   const groups: { classification: string; label: string; patterns: PatternItem[] }[] = [];
   const map = new Map<string, PatternItem[]>();
   for (const p of filteredPatterns.value) {
-    const cls = p.effective_classification || p.classification || "pending";
+    const cls = (p.effective_classification || p.classification || "pending").toLowerCase();
     if (!map.has(cls)) map.set(cls, []);
     map.get(cls)!.push(p);
   }

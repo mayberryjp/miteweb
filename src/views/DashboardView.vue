@@ -8,114 +8,15 @@
         <PatternList
           :patterns="patterns"
           :patternStats="patternStats"
-          :selectedId="selectedId"
+          :selectedId="null"
           @select="selectPattern"
         />
       </v-col>
 
-      <!-- RIGHT: KPIs + Detail + Alerts -->
+      <!-- RIGHT: KPIs + Charts + Alerts -->
       <v-col cols="12" lg="9">
-        <!-- Pattern Detail (when selected) -->
-        <v-card v-if="selectedPattern" variant="outlined" color="background-100" class="mb-4 pattern-detail-card">
-          <v-card-text>
-            <v-btn variant="text" size="small" color="primary" class="mb-2" @click="selectedId = null">
-              <v-icon start>mdi-arrow-left</v-icon> Back to overview
-            </v-btn>
-
-            <div class="text-h6 font-weight-bold mb-4">{{ patternLabel(selectedPattern) }}</div>
-
-            <v-row dense>
-              <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">ID</div>
-                <div class="text-body-2 font-weight-medium">{{ selectedPattern.id }}</div>
-              </v-col>
-              <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">Classification</div>
-                <SeverityBadge :severity="selectedPattern.effective_classification || selectedPattern.classification" />
-                <v-chip v-if="selectedPattern.user_override" size="x-small" color="warning" class="ml-1">override</v-chip>
-              </v-col>
-              <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">Host</div>
-                <div class="text-body-2 font-weight-medium">{{ selectedPattern.host || '—' }}</div>
-              </v-col>
-              <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">Hit Count</div>
-                <div class="text-body-2 font-weight-medium">{{ selectedPattern.hit_count.toLocaleString() }}</div>
-              </v-col>
-              <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">First Seen</div>
-                <div class="text-body-2 font-weight-medium">{{ formatTime(selectedPattern.first_seen_at) }}</div>
-              </v-col>
-              <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">Last Seen</div>
-                <div class="text-body-2 font-weight-medium">{{ formatTime(selectedPattern.last_seen_at) }}</div>
-              </v-col>
-            </v-row>
-
-            <div v-if="selectedPattern.ai_explanation" class="mt-4">
-              <div class="text-caption detail-label text-uppercase mb-1">AI Explanation</div>
-              <div class="text-body-2">{{ selectedPattern.ai_explanation }}</div>
-            </div>
-
-            <div class="mt-4">
-              <div class="text-caption detail-label text-uppercase mb-1">Pattern</div>
-              <v-sheet color="background-100" rounded class="pa-3">
-                <code class="text-body-2" style="word-break: break-all; white-space: pre-wrap;">{{ selectedPattern.pattern_text }}</code>
-              </v-sheet>
-            </div>
-
-            <div v-if="selectedPattern.match_regex" class="mt-4">
-              <div class="text-caption detail-label text-uppercase mb-1">Match Regex</div>
-              <v-textarea
-                v-model="regexValue"
-                variant="outlined"
-                density="compact"
-                rows="2"
-                auto-grow
-                class="mb-2"
-                style="font-family: monospace;"
-              ></v-textarea>
-              <div class="d-flex ga-2">
-                <v-btn size="small" variant="outlined" @click="copyRegex">{{ copyLabel }}</v-btn>
-                <v-btn size="small" color="primary" :disabled="savingRegex || regexValue === selectedPattern.match_regex" :loading="savingRegex" @click="saveRegex(selectedPattern.id)">Save Regex</v-btn>
-              </div>
-            </div>
-
-            <div v-if="selectedPattern.sample_message && selectedPattern.sample_message !== selectedPattern.pattern_text" class="mt-4">
-              <div class="text-caption detail-label text-uppercase mb-1">Sample Message</div>
-              <v-sheet color="background-100" rounded class="pa-3">
-                <code class="text-body-2" style="word-break: break-all; white-space: pre-wrap;">{{ selectedPattern.sample_message }}</code>
-              </v-sheet>
-            </div>
-
-            <div class="mt-4">
-              <div class="text-caption detail-label text-uppercase mb-1">Source IPs</div>
-              <div v-if="patternSourceIps.length" class="d-flex flex-wrap ga-1">
-                <v-chip v-for="ip in patternSourceIps" :key="ip" size="small" variant="outlined">{{ ip }}</v-chip>
-              </div>
-              <div v-else class="text-body-2 detail-label">{{ loadingIps ? 'Loading...' : 'No source IPs found' }}</div>
-            </div>
-
-            <div class="mt-4">
-              <div class="text-caption detail-label text-uppercase mb-1">Override Classification</div>
-              <div class="d-flex align-center ga-2">
-                <v-select
-                  v-model="overrideValue"
-                  :items="overrideOptions"
-                  item-title="text"
-                  item-value="value"
-                  variant="outlined"
-                  density="compact"
-                  style="max-width: 220px;"
-                ></v-select>
-                <v-btn size="small" color="primary" :disabled="saving" :loading="saving" @click="saveOverride(selectedPattern.id)">Save</v-btn>
-              </div>
-            </div>
-          </v-card-text>
-        </v-card>
-
-        <!-- KPI Banner (default view) -->
-        <v-row v-if="!selectedPattern" class="quickstats-background ma-0 rounded-lg mb-4">
+        <!-- KPI Banner -->
+        <v-row class="quickstats-background ma-0 rounded-lg mb-4">
           <v-col
             v-for="(stat, index) in statusStats"
             :key="index"
@@ -136,22 +37,8 @@
           </v-col>
         </v-row>
 
-        <!-- Sub stats -->
-        <div v-if="!selectedPattern" class="d-flex flex-wrap ga-4 mb-4 px-1">
-          <div class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
-            <span class="status-dot" :class="health?.status === 'ok' ? 'dot-green' : 'dot-red'"></span>
-            Backend {{ health?.status === 'ok' ? 'Online' : 'Offline' }}
-          </div>
-          <div class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
-            Logs (24h): <span class="font-weight-medium">{{ stats?.logs_last_24h != null ? stats.logs_last_24h.toLocaleString() : '—' }}</span>
-          </div>
-          <div v-if="stats?.database_size_bytes" class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
-            DB: <span class="font-weight-medium">{{ formatBytes(stats.database_size_bytes) }}</span>
-          </div>
-        </div>
-
         <!-- Stats Chart -->
-        <div v-if="!selectedPattern" class="mb-4">
+        <div class="mb-4">
           <StatsChart
             :log-stats="hourlyLogs"
             :alert-stats="hourlyAlerts"
@@ -161,7 +48,7 @@
         </div>
 
         <!-- Recent Alerts -->
-        <div v-if="!selectedPattern">
+        <div>
           <div class="d-flex align-center justify-space-between mb-2">
             <div class="text-subtitle-1 font-weight-bold">Recent Alerts</div>
             <v-select
@@ -180,6 +67,7 @@
                 <th style="width: 140px;">Time</th>
                 <th style="width: 90px;">Severity</th>
                 <th style="width: 120px;">Source</th>
+                <th style="width: 100px;">Pattern #</th>
                 <th>Message</th>
               </tr>
             </thead>
@@ -188,6 +76,7 @@
                 <td class="text-no-wrap text-body-2">{{ formatDateTime(a.created_at) }}</td>
                 <td><SeverityBadge :severity="a.severity" /></td>
                 <td class="text-body-2">{{ a.source_ip || a.host || '—' }}</td>
+                <td class="text-body-2">{{ a.pattern_id ?? '—' }}</td>
                 <td
                   class="text-body-2"
                   :class="{ 'text-truncate': !expandedAlerts.has(a.id) }"
@@ -197,7 +86,7 @@
               </tr>
             </tbody>
           </v-table>
-          <div v-else class="text-body-2 text-medium-emphasis text-center pa-6">No recent high/critical alerts.</div>
+          <div v-else class="text-body-2 text-medium-emphasis text-center pa-6">No recent alerts.</div>
         </div>
       </v-col>
     </v-row>
@@ -206,44 +95,31 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
+import { useRouter } from "vue-router";
 import { getHealth, getStats } from "@/services/system";
 import { getAlerts, getAlertsHourly } from "@/services/alerts";
 import { getLogsHourly } from "@/services/logs";
-import { getPatterns, updatePattern, getPatternStats } from "@/services/rules";
+import { getPatterns, getPatternStats } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, PatternItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import PatternList from "@/components/PatternList.vue";
 import StatsChart from "@/components/StatsChart.vue";
 
+const router = useRouter();
+
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
 const alerts = ref<AlertItem[]>([]);
 const patterns = ref<PatternItem[]>([]);
-const totalPatterns = ref(0);
 const patternStats = ref<Record<string, { hour: string; count: number }[]>>({});
 const error = ref("");
 const loading = ref(true);
-const selectedId = ref<number | null>(null);
-const overrideValue = ref("");
-const regexValue = ref("");
-const saving = ref(false);
-const savingRegex = ref(false);
-const copyLabel = ref("Copy");
-const expandedAlerts = ref(new Set<number>());
-const alertsPerPage = ref(50);
 const hourlyLogs = ref<HourlyStat[]>([]);
 const hourlyAlerts = ref<HourlyStat[]>([]);
+const expandedAlerts = ref(new Set<number>());
+const alertsPerPage = ref(50);
 const chartLoading = ref(true);
 const chartError = ref(false);
-
-const overrideOptions = [
-  { text: "None (use AI)", value: "" },
-  { text: "Critical", value: "critical" },
-  { text: "High", value: "high" },
-  { text: "Medium", value: "medium" },
-  { text: "Low", value: "low" },
-  { text: "Noise", value: "noise" },
-];
 
 const fmtNum = (v: number | undefined | null): string => {
   return v != null ? v.toLocaleString() : "—";
@@ -288,67 +164,8 @@ const toggleAlert = (id: number) => {
   expandedAlerts.value = new Set(expandedAlerts.value);
 };
 
-const patternSourceIps = ref<string[]>([]);
-const loadingIps = ref(false);
-
-const selectedPattern = computed(() =>
-  selectedId.value ? patterns.value.find((p) => p.id === selectedId.value) ?? null : null
-);
-
-const patternLabel = (p: PatternItem) => {
-  if (p.title) return p.title.toUpperCase();
-  if (p.host && p.program) return `${p.host} / ${p.program}`.toUpperCase();
-  if (p.host) return p.host.toUpperCase();
-  if (p.program) return p.program.toUpperCase();
-  return p.pattern_text.substring(0, 40).toUpperCase();
-};
-
 const selectPattern = (p: PatternItem) => {
-  if (selectedId.value === p.id) { selectedId.value = null; return; }
-  selectedId.value = p.id;
-  overrideValue.value = p.user_override || "";
-  regexValue.value = p.match_regex || "";
-  copyLabel.value = "Copy";
-  fetchPatternIps(p.id);
-};
-
-const fetchPatternIps = async (patternId: number) => {
-  loadingIps.value = true;
-  patternSourceIps.value = [];
-  try {
-    const data = await getAlerts({ limit: 100, pattern_id: patternId });
-    const items: AlertItem[] = data?.items ?? [];
-    const ips = new Set<string>();
-    for (const a of items) { if (a.source_ip) ips.add(a.source_ip); }
-    patternSourceIps.value = [...ips].sort();
-  } catch { patternSourceIps.value = []; }
-  finally { loadingIps.value = false; }
-};
-
-const copyRegex = async () => {
-  try {
-    await navigator.clipboard.writeText(regexValue.value);
-    copyLabel.value = "Copied!";
-    setTimeout(() => { copyLabel.value = "Copy"; }, 1500);
-  } catch { copyLabel.value = "Failed"; }
-};
-
-const saveRegex = async (id: number) => {
-  savingRegex.value = true;
-  try { await updatePattern(id, { match_regex: regexValue.value }); await fetchData(); }
-  catch { error.value = "Failed to update regex."; }
-  finally { savingRegex.value = false; }
-};
-
-const saveOverride = async (id: number) => {
-  saving.value = true;
-  try { await updatePattern(id, { classification: overrideValue.value || undefined }); await fetchData(); }
-  catch { error.value = "Failed to update pattern."; }
-  finally { saving.value = false; }
-};
-
-const formatTime = (ts: string) => {
-  try { return new Date(ts).toLocaleString(); } catch { return ts; }
+  router.push({ name: "pattern-detail", params: { id: p.id } });
 };
 
 const formatDateTime = (ts: string) => {
@@ -375,10 +192,10 @@ const fetchData = async () => {
     if (s.status === "fulfilled") stats.value = s.value;
     if (a.status === "fulfilled") {
       const all: AlertItem[] = a.value?.items ?? (Array.isArray(a.value) ? a.value : []);
-      alerts.value = all.filter((x) => x.severity === "critical" || x.severity === "high" || x.severity === "crit" || x.severity === "alert" || x.severity === "emerg").slice(0, alertsPerPage.value);
-      if (!alerts.value.length) alerts.value = all.slice(0, alertsPerPage.value);
+      const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+      alerts.value = all.filter((x) => new Date(x.created_at).getTime() >= cutoff).slice(0, alertsPerPage.value);
     }
-    if (p.status === "fulfilled") { patterns.value = p.value?.items ?? []; totalPatterns.value = p.value?.total ?? 0; }
+    if (p.status === "fulfilled") { patterns.value = p.value?.items ?? []; }
     if (ps.status === "fulfilled") { patternStats.value = ps.value ?? {}; }
     error.value = [h, s].some((r) => r.status === "rejected") ? "Backend unavailable. Check the Mite backend container." : "";
   } catch { error.value = "Backend unavailable. Check the Mite backend container."; }
@@ -393,8 +210,8 @@ const refreshKpis = async () => {
     if (s.status === "fulfilled") stats.value = s.value;
     if (a.status === "fulfilled") {
       const all: AlertItem[] = a.value?.items ?? (Array.isArray(a.value) ? a.value : []);
-      alerts.value = all.filter((x) => x.severity === "critical" || x.severity === "high" || x.severity === "crit" || x.severity === "alert" || x.severity === "emerg").slice(0, alertsPerPage.value);
-      if (!alerts.value.length) alerts.value = all.slice(0, alertsPerPage.value);
+      const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+      alerts.value = all.filter((x) => new Date(x.created_at).getTime() >= cutoff).slice(0, alertsPerPage.value);
     }
   } catch { /* silent */ }
 };
@@ -483,14 +300,6 @@ const fetchChartData = async () => {
 }
 
 .detail-label {
-  color: #b1b8c0 !important;
-}
-
-.pattern-detail-card {
-  color: #b1b8c0 !important;
-}
-
-.pattern-detail-card :deep(.v-card-text) {
   color: #b1b8c0 !important;
 }
 

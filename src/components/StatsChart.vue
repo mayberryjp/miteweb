@@ -4,8 +4,6 @@
       <span class="text-h6 text-sm-h5 text-md-h4 stats-chart-title">
         Log &amp; Alert Rates
       </span>
-      <v-spacer></v-spacer>
-      <span class="text-caption text-grey">Last 24 hours</span>
     </v-card-title>
     <v-divider></v-divider>
 
