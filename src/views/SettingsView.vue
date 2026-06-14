@@ -54,6 +54,10 @@
                     <td class="text-medium-emphasis">Logs Last 24h</td>
                     <td class="font-weight-medium">{{ stats.logs_last_24h.toLocaleString() }}</td>
                   </tr>
+                  <tr v-if="stats?.total_logs != null">
+                    <td class="text-medium-emphasis">Total Logs</td>
+                    <td class="font-weight-medium">{{ stats.total_logs.toLocaleString() }}</td>
+                  </tr>
                   <tr v-if="stats?.alerts_last_hour != null">
                     <td class="text-medium-emphasis">Alerts Last Hour</td>
                     <td class="font-weight-medium">{{ stats.alerts_last_hour.toLocaleString() }}</td>
@@ -61,6 +65,10 @@
                   <tr v-if="stats?.alerts_last_24h != null">
                     <td class="text-medium-emphasis">Alerts Last 24h</td>
                     <td class="font-weight-medium">{{ stats.alerts_last_24h.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="stats?.total_alerts != null">
+                    <td class="text-medium-emphasis">Total Alerts</td>
+                    <td class="font-weight-medium">{{ stats.total_alerts.toLocaleString() }}</td>
                   </tr>
                   <tr v-if="stats?.total_patterns != null">
                     <td class="text-medium-emphasis">Total Patterns</td>

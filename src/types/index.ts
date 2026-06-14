@@ -93,8 +93,10 @@ export interface PatternBreakdown {
 export interface StatsData {
   logs_last_hour?: number;
   logs_last_24h?: number;
+  total_logs?: number;
   alerts_last_hour?: number;
   alerts_last_24h?: number;
+  total_alerts?: number;
   top_hosts?: TopHost[];
   total_patterns?: number;
   pending_patterns?: number;
