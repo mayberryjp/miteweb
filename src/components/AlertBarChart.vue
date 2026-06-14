@@ -68,7 +68,7 @@ const getAlertClass = (alertCount: number): string => {
 }
 
 .alert-none {
-  background-color: #2EC4A0;
+  background-color: #2a2f35;
 }
 
 .alert-low {

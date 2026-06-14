@@ -50,7 +50,7 @@
               </div>
               <div class="host-info">{{ patternLabel(p) }}</div>
               <AlertBarChart :alertIntervals="getAlertIntervals(p.id)" class="ml-auto mr-2" />
-              <div class="threat-score-text" :style="{ color: classColor(p) }">{{ p.hit_count }}</div>
+              <div class="threat-score-text" :style="{ color: classColor(p) }" :title="get12hCount(p.id).toLocaleString()">{{ formatCount(get12hCount(p.id)) }}</div>
             </div>
           </v-list-item>
         </template>
@@ -174,6 +174,15 @@ const getAlertIntervals = (patternId: number) => {
   const intervals = props.patternStats[String(patternId)] || [];
   return intervals.map((i) => i.count);
 };
+
+const get12hCount = (patternId: number) => {
+  const intervals = props.patternStats[String(patternId)] || [];
+  return intervals.reduce((sum, i) => sum + i.count, 0);
+};
+
+const formatCount = (n: number): string => {
+  return n.toLocaleString();
+};
 </script>
 
 <style scoped>
@@ -235,11 +244,12 @@ const getAlertIntervals = (patternId: number) => {
 }
 
 .threat-score-text {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
-  width: 30px;
-  min-width: 30px;
+  min-width: 40px;
   text-align: right;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Group headers */

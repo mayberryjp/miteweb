@@ -26,6 +26,10 @@
 
             <v-row dense>
               <v-col cols="6" sm="4">
+                <div class="text-caption detail-label text-uppercase">ID</div>
+                <div class="text-body-2 font-weight-medium">{{ selectedPattern.id }}</div>
+              </v-col>
+              <v-col cols="6" sm="4">
                 <div class="text-caption detail-label text-uppercase">Classification</div>
                 <SeverityBadge :severity="selectedPattern.effective_classification || selectedPattern.classification" />
                 <v-chip v-if="selectedPattern.user_override" size="x-small" color="warning" class="ml-1">override</v-chip>
@@ -35,12 +39,8 @@
                 <div class="text-body-2 font-weight-medium">{{ selectedPattern.host || '—' }}</div>
               </v-col>
               <v-col cols="6" sm="4">
-                <div class="text-caption detail-label text-uppercase">Program</div>
-                <div class="text-body-2 font-weight-medium">{{ selectedPattern.program || '—' }}</div>
-              </v-col>
-              <v-col cols="6" sm="4">
                 <div class="text-caption detail-label text-uppercase">Hit Count</div>
-                <div class="text-body-2 font-weight-medium">{{ selectedPattern.hit_count }}</div>
+                <div class="text-body-2 font-weight-medium">{{ selectedPattern.hit_count.toLocaleString() }}</div>
               </v-col>
               <v-col cols="6" sm="4">
                 <div class="text-caption detail-label text-uppercase">First Seen</div>
@@ -70,7 +70,8 @@
                 v-model="regexValue"
                 variant="outlined"
                 density="compact"
-                rows="4"
+                rows="2"
+                auto-grow
                 class="mb-2"
                 style="font-family: monospace;"
               ></v-textarea>
@@ -80,7 +81,7 @@
               </div>
             </div>
 
-            <div class="mt-4">
+            <div v-if="selectedPattern.sample_message && selectedPattern.sample_message !== selectedPattern.pattern_text" class="mt-4">
               <div class="text-caption detail-label text-uppercase mb-1">Sample Message</div>
               <v-sheet color="background-100" rounded class="pa-3">
                 <code class="text-body-2" style="word-break: break-all; white-space: pre-wrap;">{{ selectedPattern.sample_message }}</code>
@@ -142,7 +143,7 @@
             Backend {{ health?.status === 'ok' ? 'Online' : 'Offline' }}
           </div>
           <div class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
-            Logs (24h): <span class="font-weight-medium">{{ stats?.logs_last_24h ?? '—' }}</span>
+            Logs (24h): <span class="font-weight-medium">{{ stats?.logs_last_24h != null ? stats.logs_last_24h.toLocaleString() : '—' }}</span>
           </div>
           <div v-if="stats?.database_size_bytes" class="d-flex align-center ga-1 text-body-2 text-medium-emphasis">
             DB: <span class="font-weight-medium">{{ formatBytes(stats.database_size_bytes) }}</span>
@@ -244,35 +245,39 @@ const overrideOptions = [
   { text: "Noise", value: "noise" },
 ];
 
+const fmtNum = (v: number | undefined | null): string => {
+  return v != null ? v.toLocaleString() : "—";
+};
+
 const statusStats = computed(() => [
   {
     label: "Logs",
     description: "Last Hour",
-    value: stats.value?.logs_last_hour ?? "—",
+    value: fmtNum(stats.value?.logs_last_hour),
     color: "text-blue-accent-3",
   },
   {
     label: "Patterns",
     description: "Total",
-    value: stats.value?.total_patterns ?? "—",
+    value: fmtNum(stats.value?.total_patterns),
     color: "text-green-accent-3",
   },
   {
     label: "Patterns",
     description: "Pending",
-    value: stats.value?.pending_patterns ?? "—",
+    value: fmtNum(stats.value?.pending_patterns),
     color: (stats.value?.pending_patterns ?? 0) > 0 ? "text-yellow" : "text-green-accent-3",
   },
   {
     label: "Alerts",
     description: "Unacknowledged",
-    value: stats.value?.alerts_last_24h ?? "—",
+    value: fmtNum(stats.value?.alerts_last_24h),
     color: (stats.value?.alerts_last_24h ?? 0) > 0 ? "text-red" : "text-green-accent-3",
   },
   {
     label: "AI Calls",
     description: "Last 24h",
-    value: stats.value?.ai_api_calls_24h ?? "—",
+    value: fmtNum(stats.value?.ai_api_calls_24h),
     color: "text-purple",
   },
 ]);
@@ -364,7 +369,7 @@ const fetchData = async () => {
   try {
     const [h, s, a, p, ps] = await Promise.allSettled([
       getHealth(), getStats(), getAlerts({ limit: 100 }),
-      getPatterns({ limit: 200 }), getPatternStats(12),
+      getPatterns(), getPatternStats(12),
     ]);
     if (h.status === "fulfilled") health.value = h.value;
     if (s.status === "fulfilled") stats.value = s.value;
