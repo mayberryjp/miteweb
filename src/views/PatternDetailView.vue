@@ -6,19 +6,6 @@
       Classification updated
     </v-snackbar>
 
-    <v-row>
-      <!-- LEFT: Pattern List -->
-      <v-col cols="12" lg="3" class="pattern-list-panel">
-        <PatternList
-          :patterns="patterns"
-          :patternStats="patternStats"
-          :selectedId="patternId"
-          @select="onSelectPattern"
-        />
-      </v-col>
-
-      <!-- RIGHT: Pattern Detail -->
-      <v-col cols="12" lg="9">
         <transition name="slide-up" mode="out-in">
           <div v-if="pattern" key="detail-content" class="main-content">
             <!-- Header Card -->
@@ -225,8 +212,6 @@
             Pattern not found.
           </div>
         </transition>
-      </v-col>
-    </v-row>
 
     <!-- Delete Pattern Confirmation Dialog -->
     <v-dialog v-model="deletePatternDialog" max-width="500">
@@ -250,12 +235,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from "vue";
+import { ref, computed, onMounted, watch, inject, type Ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getPatterns, updatePattern, getPatternStats, getPatternTimeSeries, getPatternLogs, deletePattern } from "@/services/rules";
+import { updatePattern, getPatternTimeSeries, getPatternLogs, deletePattern } from "@/services/rules";
 import type { PatternItem, HourlyStat, LogItem } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
-import PatternList from "@/components/PatternList.vue";
 import StatsChart from "@/components/StatsChart.vue";
 import AlertBarChart from "@/components/AlertBarChart.vue";
 import PatternStats from "@/components/PatternStats.vue";
@@ -264,8 +248,9 @@ const route = useRoute();
 const router = useRouter();
 
 const patternId = computed(() => Number(route.params.id));
-const patterns = ref<PatternItem[]>([]);
-const patternStats = ref<Record<string, { hour: string; count: number }[]>>({});
+const patterns = inject<Ref<PatternItem[]>>("patterns", ref([]));
+const patternStats = inject<Ref<Record<string, { hour: string; count: number }[]>>>("patternStats", ref({}));
+const refreshPatterns = inject<() => Promise<void>>("refreshPatterns", async () => {});
 const error = ref("");
 const loading = ref(true);
 const overrideValue = ref("");
@@ -340,10 +325,6 @@ const getDetailAlertIntervals = (id: number) => {
   return intervals.map((i: { count: number }) => i.count);
 };
 
-const onSelectPattern = (p: PatternItem) => {
-  router.push({ name: "pattern-detail", params: { id: p.id } });
-};
-
 const loadPatternData = async (id: number) => {
   overrideValue.value = "";
   regexValue.value = "";
@@ -379,7 +360,7 @@ const saveTitle = async () => {
   savingTitle.value = true;
   try {
     await updatePattern(pattern.value.id, { title: titleDraft.value.trim() || undefined });
-    await fetchPatterns();
+    await refreshPatterns();
     editingTitle.value = false;
   } catch {
     error.value = "Failed to update title.";
@@ -405,7 +386,7 @@ const saveAiExplanation = async () => {
     await updatePattern(pattern.value.id, {
       ai_explanation: aiExplanationDraft.value.trim() || undefined,
     });
-    await fetchPatterns();
+    await refreshPatterns();
     editingAiExplanation.value = false;
   } catch {
     error.value = "Failed to update AI explanation.";
@@ -459,7 +440,7 @@ const autoSaveClassification = async () => {
   try {
     await updatePattern(patternId.value, { classification: overrideValue.value || undefined });
     snackbar.value = true;
-    await fetchPatterns();
+    await refreshPatterns();
   } catch { error.value = "Failed to update pattern."; }
   finally { saving.value = false; }
 };
@@ -474,7 +455,7 @@ const copyRegex = async () => {
 
 const saveRegex = async (id: number) => {
   savingRegex.value = true;
-  try { await updatePattern(id, { match_regex: regexValue.value }); await fetchPatterns(); }
+  try { await updatePattern(id, { match_regex: regexValue.value }); await refreshPatterns(); }
   catch { error.value = "Failed to update regex."; }
   finally { savingRegex.value = false; }
 };
@@ -485,7 +466,7 @@ const handleDeletePattern = async () => {
   try {
     await deletePattern(pattern.value.id);
     deletePatternDialog.value = false;
-    await fetchPatterns();
+    await refreshPatterns();
     router.push({ name: "dashboard" });
   } catch {
     error.value = "Failed to delete pattern.";
@@ -506,16 +487,10 @@ const formatDateTime = (ts: string) => {
   } catch { return ts; }
 };
 
-const fetchPatterns = async () => {
-  try {
-    const [p, ps] = await Promise.allSettled([getPatterns(), getPatternStats(12)]);
-    if (p.status === "fulfilled") { patterns.value = p.value?.items ?? []; }
-    if (ps.status === "fulfilled") { patternStats.value = ps.value ?? {}; }
-  } catch { /* silent */ }
-};
-
 onMounted(async () => {
-  await fetchPatterns();
+  if (!patterns.value.length) {
+    await refreshPatterns();
+  }
   loading.value = false;
   if (patternId.value) {
     await loadPatternData(patternId.value);

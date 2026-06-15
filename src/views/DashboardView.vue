@@ -2,19 +2,6 @@
   <div>
     <v-alert v-if="error" type="error" variant="tonal" closable class="mb-4">{{ error }}</v-alert>
 
-    <v-row>
-      <!-- LEFT: Pattern List -->
-      <v-col cols="12" lg="3" class="pattern-list-panel">
-        <PatternList
-          :patterns="patterns"
-          :patternStats="patternStats"
-          :selectedId="null"
-          @select="selectPattern"
-        />
-      </v-col>
-
-      <!-- RIGHT: KPIs + Charts + Alerts -->
-      <v-col cols="12" lg="9">
         <!-- KPI Banner -->
         <v-row class="quickstats-background ma-0 rounded-lg mb-4">
           <v-col
@@ -101,30 +88,21 @@
           </v-table>
           <div v-else class="text-body-2 text-medium-emphasis text-center pa-6">No recent alerts.</div>
         </div>
-      </v-col>
-    </v-row>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from "vue";
-import { useRouter } from "vue-router";
 import { getHealth, getStats } from "@/services/system";
 import { getAlerts, getAlertsHourly, deleteAlert } from "@/services/alerts";
 import { getLogsHourly, getLogsNoiseHourly } from "@/services/logs";
-import { getPatterns, getPatternStats } from "@/services/rules";
-import type { HealthStatus, StatsData, AlertItem, PatternItem, HourlyStat } from "@/types";
+import type { HealthStatus, StatsData, AlertItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
-import PatternList from "@/components/PatternList.vue";
 import StatsChart from "@/components/StatsChart.vue";
-
-const router = useRouter();
 
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
 const alerts = ref<AlertItem[]>([]);
-const patterns = ref<PatternItem[]>([]);
-const patternStats = ref<Record<string, { hour: string; count: number }[]>>({});
 const error = ref("");
 const loading = ref(true);
 const hourlyLogs = ref<HourlyStat[]>([]);
@@ -187,10 +165,6 @@ const handleDeleteAlert = async (id: number) => {
   }
 };
 
-const selectPattern = (p: PatternItem) => {
-  router.push({ name: "pattern-detail", params: { id: p.id } });
-};
-
 const formatDateTime = (ts: string) => {
   try {
     const d = new Date(ts);
@@ -213,11 +187,22 @@ const filterRecentCriticalAlerts = (all: AlertItem[]) => {
     .slice(0, alertsPerPage.value);
 };
 
+const isCurrentHourBucket = (hour: string) => {
+  const d = new Date(hour);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate() &&
+    d.getHours() === now.getHours()
+  );
+};
+
 const fetchData = async () => {
   try {
-    const [h, s, a, p, ps] = await Promise.allSettled([
+    const [h, s, a] = await Promise.allSettled([
       getHealth(), getStats(), getAlerts({ limit: 100 }),
-      getPatterns(), getPatternStats(12),
     ]);
     if (h.status === "fulfilled") health.value = h.value;
     if (s.status === "fulfilled") stats.value = s.value;
@@ -225,8 +210,6 @@ const fetchData = async () => {
       const all: AlertItem[] = a.value?.items ?? (Array.isArray(a.value) ? a.value : []);
       alerts.value = filterRecentCriticalAlerts(all);
     }
-    if (p.status === "fulfilled") { patterns.value = p.value?.items ?? []; }
-    if (ps.status === "fulfilled") { patternStats.value = ps.value ?? {}; }
     error.value = [h, s].some((r) => r.status === "rejected") ? "Backend unavailable. Check the Mite backend container." : "";
   } catch { error.value = "Backend unavailable. Check the Mite backend container."; }
   finally { loading.value = false; }
@@ -254,9 +237,9 @@ const fetchChartData = async () => {
   chartError.value = false;
   try {
     const [logs, alerts, noise] = await Promise.all([getLogsHourly(100), getAlertsHourly(100), getLogsNoiseHourly(100)]);
-    hourlyLogs.value = logs;
-    hourlyAlerts.value = alerts;
-    hourlyNoise.value = noise;
+    hourlyLogs.value = logs.filter((s) => !isCurrentHourBucket(s.hour));
+    hourlyAlerts.value = alerts.filter((s) => !isCurrentHourBucket(s.hour));
+    hourlyNoise.value = noise.filter((s) => !isCurrentHourBucket(s.hour));
   } catch {
     chartError.value = true;
   } finally {

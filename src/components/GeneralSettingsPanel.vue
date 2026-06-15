@@ -9,7 +9,7 @@
         <div class="flex-grow-1">
           <div class="text-caption text-medium-emphasis text-uppercase">min_message_length</div>
           <div class="text-body-2 text-medium-emphasis">
-            Messages shorter than this value can be filtered out by the backend.
+            Messages shorter than this value will be filtered out by the backend.
           </div>
         </div>
 
@@ -21,34 +21,16 @@
             variant="outlined"
             density="compact"
             label="Minimum Message Length"
-            :loading="loading"
-            :disabled="loading"
+            :loading="loading || saving"
+            :disabled="loading || resetting"
             hide-details
+            @blur="flushAutoSave"
           />
         </div>
       </div>
 
       <div class="d-flex flex-wrap ga-3 mt-4">
-        <v-btn
-          color="primary"
-          variant="elevated"
-          prepend-icon="mdi-content-save"
-          :loading="saving"
-          :disabled="loading || saving || !isDirty"
-          @click="saveSetting"
-        >
-          Save Setting
-        </v-btn>
-        <v-btn
-          color="secondary"
-          variant="outlined"
-          prepend-icon="mdi-restore"
-          :loading="resetting"
-          :disabled="loading || resetting"
-          @click="resetSettingValue"
-        >
-          Reset to Default
-        </v-btn>
+        
       </div>
 
       <v-alert
@@ -66,19 +48,23 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { getSetting, updateSetting, resetSetting } from "@/services/system";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { getSetting, updateSetting } from "@/services/system";
 
 const settingKey = "min_message_length";
 const minMessageLength = ref("0");
 const initialValue = ref("0");
 const loading = ref(false);
 const saving = ref(false);
-const resetting = ref(false);
 const message = ref("");
 const success = ref(false);
+const pendingAutoSave = ref(false);
+let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const isDirty = computed(() => minMessageLength.value !== initialValue.value);
+
+const normalizeValue = (value: string) =>
+  String(Math.max(0, Number.parseInt(value || "0", 10) || 0));
 
 const fetchSetting = async () => {
   loading.value = true;
@@ -96,39 +82,62 @@ const fetchSetting = async () => {
 };
 
 const saveSetting = async () => {
+  if (saving.value) {
+    pendingAutoSave.value = true;
+    return;
+  }
+  if (!isDirty.value) return;
+
   saving.value = true;
   message.value = "";
   try {
-    const normalized = String(Math.max(0, Number.parseInt(minMessageLength.value || "0", 10) || 0));
+    const normalized = normalizeValue(minMessageLength.value);
     await updateSetting(settingKey, normalized);
     minMessageLength.value = normalized;
     initialValue.value = normalized;
-    message.value = "min_message_length saved successfully.";
+    message.value = "min_message_length auto-saved.";
     success.value = true;
   } catch {
     message.value = "Failed to save min_message_length.";
     success.value = false;
   } finally {
     saving.value = false;
+    if (pendingAutoSave.value && isDirty.value) {
+      scheduleAutoSave();
+    }
   }
 };
 
-const resetSettingValue = async () => {
-  resetting.value = true;
-  message.value = "";
-  try {
-    const value = await resetSetting(settingKey);
-    minMessageLength.value = value ?? "0";
-    initialValue.value = minMessageLength.value;
-    message.value = "min_message_length reset to default.";
-    success.value = true;
-  } catch {
-    message.value = "Failed to reset min_message_length.";
-    success.value = false;
-  } finally {
-    resetting.value = false;
-  }
+const scheduleAutoSave = () => {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(() => {
+    autoSaveTimer = null;
+    if (!pendingAutoSave.value) return;
+    pendingAutoSave.value = false;
+    void saveSetting();
+  }, 600);
 };
+
+const flushAutoSave = () => {
+  if (!pendingAutoSave.value && !isDirty.value) return;
+  if (autoSaveTimer) {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
+  pendingAutoSave.value = false;
+  void saveSetting();
+};
+
+watch(minMessageLength, () => {
+  if (loading.value) return;
+  if (!isDirty.value) return;
+  pendingAutoSave.value = true;
+  scheduleAutoSave();
+});
+
+onUnmounted(() => {
+  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+});
 
 onMounted(fetchSetting);
 </script>
