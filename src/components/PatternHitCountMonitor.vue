@@ -23,6 +23,7 @@
       <thead>
         <tr>
           <th style="width: 90px;">Pattern</th>
+          <th style="width: 140px;">Classification</th>
           <th style="width: 120px;">Previous</th>
           <th style="width: 120px;">Current</th>
           <th style="width: 120px;">Delta</th>
@@ -33,6 +34,7 @@
       <tbody>
         <tr v-for="row in changedRows" :key="row.id">
           <td>#{{ row.id }}</td>
+          <td class="text-uppercase">{{ row.classification }}</td>
           <td>{{ row.previous.toLocaleString() }}</td>
           <td>{{ row.current.toLocaleString() }}</td>
           <td>
@@ -59,6 +61,7 @@ import type { PatternItem } from "@/types";
 
 type ChangedRow = {
   id: number;
+  classification: string;
   previous: number;
   current: number;
   delta: number;
@@ -102,10 +105,12 @@ const buildChangedRows = (patterns: PatternItem[]) => {
     const id = pattern.id;
     const current = pattern.hit_count ?? 0;
     next[id] = current;
+    const classification = (pattern.effective_classification || pattern.classification || "unclassified").toLowerCase();
 
     if (Object.prototype.hasOwnProperty.call(prev, id) && prev[id] !== current) {
       rows.push({
         id,
+        classification,
         previous: prev[id],
         current,
         delta: current - prev[id],

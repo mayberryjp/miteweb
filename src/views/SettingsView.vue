@@ -10,10 +10,11 @@
           :show-arrows="!lgAndUp"
           color="primary"
         >
-          <v-tab value="health">BACKEND HEALTH</v-tab>
+          <v-tab value="general">GENERAL</v-tab>
           <v-tab value="actions">ACTIONS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
           <v-tab value="hits">PATTERN HITS</v-tab>
+          <v-tab value="health">BACKEND HEALTH</v-tab>
         </v-tabs>
       </v-col>
 
@@ -21,7 +22,124 @@
       <v-col cols="12" lg="9">
         <v-card-text>
           <v-window v-model="activeTab">
-            <!-- Backend Health -->
+            <v-window-item value="general">
+              <h3>General Settings</h3>
+              <v-divider class="my-4"></v-divider>
+              <GeneralSettingsPanel />
+            </v-window-item>
+
+            <v-window-item value="actions">
+              <h3>Actions</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <div class="maintenance-actions">
+                <div class="maintenance-action mb-6">
+                  <v-btn
+                    color="primary"
+                    variant="elevated"
+                    min-width="260"
+                    elevation="2"
+                    prepend-icon="mdi-webhook"
+                    :loading="testingDiscord"
+                    @click="handleTestDiscord"
+                  >
+                    Test Discord Webhook
+                  </v-btn>
+                  <p class="text-body-2 mt-2">
+                    Sends a test message to the configured Discord webhook.
+                  </p>
+                </div>
+
+                <div class="maintenance-action">
+                  <v-btn
+                    color="error"
+                    variant="elevated"
+                    min-width="260"
+                    elevation="2"
+                    prepend-icon="mdi-delete-alert"
+                    :loading="deletingAlerts"
+                    @click="deleteAlertsDialog = true"
+                  >
+                    Delete All Alerts
+                  </v-btn>
+                  <p class="text-body-2 mt-2">
+                    This will permanently delete all alert data from the system. This
+                    action cannot be undone.
+                  </p>
+                </div>
+              </div>
+
+              <v-alert
+                v-if="actionMessage"
+                :type="actionSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="actionMessage = ''"
+              >
+                {{ actionMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="prompt">
+              <h3>AI Prompt Template</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <p class="text-body-2 text-medium-emphasis mb-4">
+                Edit the prompt template sent to the AI when analysing syslog patterns.
+                Use <strong>Reset to Default</strong> to restore the built-in template.
+              </p>
+
+              <v-textarea
+                v-model="promptTemplate"
+                variant="outlined"
+                rows="20"
+                auto-grow
+                :loading="promptLoading"
+                :disabled="promptLoading"
+                label="ai_prompt_template"
+                class="prompt-textarea"
+              />
+
+              <div class="d-flex gap-3 mt-3">
+                <v-btn
+                  color="primary"
+                  variant="elevated"
+                  :loading="promptSaving"
+                  prepend-icon="mdi-content-save"
+                  @click="savePrompt"
+                >
+                  Save Prompt
+                </v-btn>
+                <v-btn
+                  color="secondary"
+                  variant="outlined"
+                  :loading="promptResetting"
+                  prepend-icon="mdi-restore"
+                  @click="resetPrompt"
+                >
+                  Reset to Default
+                </v-btn>
+              </div>
+
+              <v-alert
+                v-if="promptMessage"
+                :type="promptSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="promptMessage = ''"
+              >
+                {{ promptMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="hits">
+              <h3>Pattern Hit Counts</h3>
+              <v-divider class="my-4"></v-divider>
+              <PatternHitCountMonitor />
+            </v-window-item>
+
             <v-window-item value="health">
               <h3>Backend Health</h3>
               <v-divider class="my-4"></v-divider>
@@ -97,119 +215,6 @@
                 Refresh Health
               </v-btn>
             </v-window-item>
-
-            <!-- Actions -->
-            <v-window-item value="actions">
-              <h3>Actions</h3>
-              <v-divider class="my-4"></v-divider>
-
-              <div class="maintenance-actions">
-                <div class="maintenance-action mb-6">
-                  <v-btn
-                    color="primary"
-                    variant="elevated"
-                    min-width="260"
-                    elevation="2"
-                    prepend-icon="mdi-webhook"
-                    :loading="testingDiscord"
-                    @click="handleTestDiscord"
-                  >
-                    Test Discord Webhook
-                  </v-btn>
-                  <p class="text-body-2 mt-2">
-                    Sends a test message to the configured Discord webhook.
-                  </p>
-                </div>
-
-                <div class="maintenance-action">
-                  <v-btn
-                    color="error"
-                    variant="elevated"
-                    min-width="260"
-                    elevation="2"
-                    prepend-icon="mdi-delete-alert"
-                    :loading="deletingAlerts"
-                    @click="deleteAlertsDialog = true"
-                  >
-                    Delete All Alerts
-                  </v-btn>
-                  <p class="text-body-2 mt-2">
-                    This will permanently delete all alert data from the system. This
-                    action cannot be undone.
-                  </p>
-                </div>
-              </div>
-
-              <v-alert
-                v-if="actionMessage"
-                :type="actionSuccess ? 'success' : 'error'"
-                variant="tonal"
-                class="mt-4"
-                closable
-                @click:close="actionMessage = ''"
-              >
-                {{ actionMessage }}
-              </v-alert>
-            </v-window-item>
-            <!-- Prompt -->
-            <v-window-item value="prompt">
-              <h3>AI Prompt Template</h3>
-              <v-divider class="my-4"></v-divider>
-
-              <p class="text-body-2 text-medium-emphasis mb-4">
-                Edit the prompt template sent to the AI when analysing syslog patterns.
-                Use <strong>Reset to Default</strong> to restore the built-in template.
-              </p>
-
-              <v-textarea
-                v-model="promptTemplate"
-                variant="outlined"
-                rows="20"
-                auto-grow
-                :loading="promptLoading"
-                :disabled="promptLoading"
-                label="ai_prompt_template"
-                class="prompt-textarea"
-              />
-
-              <div class="d-flex gap-3 mt-3">
-                <v-btn
-                  color="primary"
-                  variant="elevated"
-                  :loading="promptSaving"
-                  prepend-icon="mdi-content-save"
-                  @click="savePrompt"
-                >
-                  Save Prompt
-                </v-btn>
-                <v-btn
-                  color="secondary"
-                  variant="outlined"
-                  :loading="promptResetting"
-                  prepend-icon="mdi-restore"
-                  @click="resetPrompt"
-                >
-                  Reset to Default
-                </v-btn>
-              </div>
-
-              <v-alert
-                v-if="promptMessage"
-                :type="promptSuccess ? 'success' : 'error'"
-                variant="tonal"
-                class="mt-4"
-                closable
-                @click:close="promptMessage = ''"
-              >
-                {{ promptMessage }}
-              </v-alert>
-            </v-window-item>
-
-            <v-window-item value="hits">
-              <h3>Pattern Hit Counts</h3>
-              <v-divider class="my-4"></v-divider>
-              <PatternHitCountMonitor />
-            </v-window-item>
           </v-window>
         </v-card-text>
       </v-col>
@@ -242,11 +247,12 @@ import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetti
 import { deleteAllAlerts } from "@/services/alerts";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
+import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
 import PatternHitCountMonitor from "@/components/PatternHitCountMonitor.vue";
 
 const { lgAndUp } = useDisplay();
 
-const activeTab = ref("health");
+const activeTab = ref("general");
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
 const error = ref("");
