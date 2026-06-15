@@ -194,6 +194,10 @@
                     <td class="text-medium-emphasis">Total Patterns</td>
                     <td class="font-weight-medium">{{ stats.total_patterns.toLocaleString() }}</td>
                   </tr>
+                  <tr v-if="stats?.total_patterns != null">
+                    <td class="text-medium-emphasis">AI API Costs</td>
+                    <td class="font-weight-medium">{{ aiApiCosts }}</td>
+                  </tr>
                   <tr v-if="stats?.pending_patterns != null">
                     <td class="text-medium-emphasis">Pending Patterns</td>
                     <td class="font-weight-medium">{{ stats.pending_patterns.toLocaleString() }}</td>
@@ -241,7 +245,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from "vue";
+import { ref, onMounted, computed } from "vue";
 import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
@@ -264,6 +268,13 @@ const actionMessage = ref("");
 const actionSuccess = ref(false);
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+const AI_API_COST_PER_PATTERN = 0.00025;
+
+const aiApiCosts = computed(() => {
+  const totalPatterns = stats.value?.total_patterns ?? 0;
+  const totalCost = totalPatterns * AI_API_COST_PER_PATTERN;
+  return `$${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
+});
 
 // Prompt tab state
 const promptTemplate = ref("");
