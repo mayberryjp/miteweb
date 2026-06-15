@@ -40,11 +40,14 @@ import type { HourlyStat } from "@/types";
 const props = defineProps<{
   logStats: HourlyStat[];
   alertStats: HourlyStat[];
+  noiseStats?: HourlyStat[];
   loading: boolean;
   error: boolean;
 }>();
 
-const hasData = computed(() => props.logStats.length > 0 || props.alertStats.length > 0);
+const noiseStats = computed(() => props.noiseStats ?? []);
+
+const hasData = computed(() => props.logStats.length > 0 || props.alertStats.length > 0 || noiseStats.value.length > 0);
 
 const formatHour = (hour: string) => {
   try {
@@ -63,8 +66,11 @@ const formatHour = (hour: string) => {
 };
 
 const categories = computed(() => {
-  const hours = props.logStats.length >= props.alertStats.length ? props.logStats : props.alertStats;
-  return [...hours]
+  const longest = [props.logStats, props.alertStats, noiseStats.value].reduce(
+    (a, b) => (b.length > a.length ? b : a),
+    [] as HourlyStat[]
+  );
+  return [...longest]
     .sort((a, b) => a.hour.localeCompare(b.hour))
     .map((s) => formatHour(s.hour));
 });
@@ -75,6 +81,10 @@ const sortedLogs = computed(() =>
 
 const sortedAlerts = computed(() =>
   [...props.alertStats].sort((a, b) => a.hour.localeCompare(b.hour))
+);
+
+const sortedNoise = computed(() =>
+  [...noiseStats.value].sort((a, b) => a.hour.localeCompare(b.hour))
 );
 
 const series = computed(() => [
@@ -88,6 +98,11 @@ const series = computed(() => [
     type: "bar",
     data: sortedAlerts.value.map((s) => s.count),
   },
+  {
+    name: "Noise",
+    type: "line",
+    data: sortedNoise.value.map((s) => s.count),
+  },
 ]);
 
 const chartOptions = computed(() => ({
@@ -98,9 +113,9 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false },
   },
-  colors: ["#5CDD8B", "#B71C1C"],
-  fill: { opacity: [1, 0.3] },
-  stroke: { curve: "smooth", width: [3, 0] },
+  colors: ["#5CDD8B", "#B71C1C", "#FF9800"],
+  fill: { opacity: [1, 0.3, 1] },
+  stroke: { curve: "smooth", width: [3, 0, 2] },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
@@ -108,6 +123,7 @@ const chartOptions = computed(() => ({
     y: [
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} logs` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} alerts` },
+      { formatter: (val: number) => `${Math.round(val).toLocaleString()} noise` },
     ],
   },
   grid: {
@@ -138,6 +154,10 @@ const chartOptions = computed(() => ({
         style: { colors: "#b1b8c0" },
         formatter: (val: number) => Math.round(val).toLocaleString(),
       },
+    },
+    {
+      show: false,
+      seriesName: "Logs",
     },
   ],
   legend: {

@@ -42,6 +42,7 @@
           <StatsChart
             :log-stats="hourlyLogs"
             :alert-stats="hourlyAlerts"
+            :noise-stats="hourlyNoise"
             :loading="chartLoading"
             :error="chartError"
           />
@@ -50,7 +51,7 @@
         <!-- Recent Alerts -->
         <div>
           <div class="d-flex align-center justify-space-between mb-2">
-            <div class="text-subtitle-1 font-weight-bold">Recent Alerts</div>
+            <div class="text-subtitle-1 font-weight-bold">Recent Critical Alerts</div>
             <v-select
               v-model="alertsPerPage"
               :items="[10, 25, 50, 100]"
@@ -110,7 +111,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { useRouter } from "vue-router";
 import { getHealth, getStats } from "@/services/system";
 import { getAlerts, getAlertsHourly, deleteAlert } from "@/services/alerts";
-import { getLogsHourly } from "@/services/logs";
+import { getLogsHourly, getLogsNoiseHourly } from "@/services/logs";
 import { getPatterns, getPatternStats } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, PatternItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
@@ -128,6 +129,7 @@ const error = ref("");
 const loading = ref(true);
 const hourlyLogs = ref<HourlyStat[]>([]);
 const hourlyAlerts = ref<HourlyStat[]>([]);
+const hourlyNoise = ref<HourlyStat[]>([]);
 const expandedAlerts = ref(new Set<number>());
 const alertsPerPage = ref(50);
 const chartLoading = ref(true);
@@ -203,6 +205,14 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const filterRecentCriticalAlerts = (all: AlertItem[]) => {
+  const cutoff = Date.now() - 12 * 60 * 60 * 1000;
+  return all
+    .filter((x) => (x.severity || "").toLowerCase() === "critical")
+    .filter((x) => new Date(x.created_at).getTime() >= cutoff)
+    .slice(0, alertsPerPage.value);
+};
+
 const fetchData = async () => {
   try {
     const [h, s, a, p, ps] = await Promise.allSettled([
@@ -213,8 +223,7 @@ const fetchData = async () => {
     if (s.status === "fulfilled") stats.value = s.value;
     if (a.status === "fulfilled") {
       const all: AlertItem[] = a.value?.items ?? (Array.isArray(a.value) ? a.value : []);
-      const cutoff = Date.now() - 12 * 60 * 60 * 1000;
-      alerts.value = all.filter((x) => new Date(x.created_at).getTime() >= cutoff).slice(0, alertsPerPage.value);
+      alerts.value = filterRecentCriticalAlerts(all);
     }
     if (p.status === "fulfilled") { patterns.value = p.value?.items ?? []; }
     if (ps.status === "fulfilled") { patternStats.value = ps.value ?? {}; }
@@ -231,8 +240,7 @@ const refreshKpis = async () => {
     if (s.status === "fulfilled") stats.value = s.value;
     if (a.status === "fulfilled") {
       const all: AlertItem[] = a.value?.items ?? (Array.isArray(a.value) ? a.value : []);
-      const cutoff = Date.now() - 12 * 60 * 60 * 1000;
-      alerts.value = all.filter((x) => new Date(x.created_at).getTime() >= cutoff).slice(0, alertsPerPage.value);
+      alerts.value = filterRecentCriticalAlerts(all);
     }
   } catch { /* silent */ }
 };
@@ -245,9 +253,10 @@ const fetchChartData = async () => {
   chartLoading.value = true;
   chartError.value = false;
   try {
-    const [logs, alerts] = await Promise.all([getLogsHourly(100), getAlertsHourly(100)]);
+    const [logs, alerts, noise] = await Promise.all([getLogsHourly(100), getAlertsHourly(100), getLogsNoiseHourly(100)]);
     hourlyLogs.value = logs;
     hourlyAlerts.value = alerts;
+    hourlyNoise.value = noise;
   } catch {
     chartError.value = true;
   } finally {

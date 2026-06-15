@@ -12,6 +12,8 @@
         >
           <v-tab value="health">BACKEND HEALTH</v-tab>
           <v-tab value="actions">ACTIONS</v-tab>
+          <v-tab value="prompt">PROMPT</v-tab>
+          <v-tab value="hits">PATTERN HITS</v-tab>
         </v-tabs>
       </v-col>
 
@@ -149,6 +151,65 @@
                 {{ actionMessage }}
               </v-alert>
             </v-window-item>
+            <!-- Prompt -->
+            <v-window-item value="prompt">
+              <h3>AI Prompt Template</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <p class="text-body-2 text-medium-emphasis mb-4">
+                Edit the prompt template sent to the AI when analysing syslog patterns.
+                Use <strong>Reset to Default</strong> to restore the built-in template.
+              </p>
+
+              <v-textarea
+                v-model="promptTemplate"
+                variant="outlined"
+                rows="20"
+                auto-grow
+                :loading="promptLoading"
+                :disabled="promptLoading"
+                label="ai_prompt_template"
+                class="prompt-textarea"
+              />
+
+              <div class="d-flex gap-3 mt-3">
+                <v-btn
+                  color="primary"
+                  variant="elevated"
+                  :loading="promptSaving"
+                  prepend-icon="mdi-content-save"
+                  @click="savePrompt"
+                >
+                  Save Prompt
+                </v-btn>
+                <v-btn
+                  color="secondary"
+                  variant="outlined"
+                  :loading="promptResetting"
+                  prepend-icon="mdi-restore"
+                  @click="resetPrompt"
+                >
+                  Reset to Default
+                </v-btn>
+              </div>
+
+              <v-alert
+                v-if="promptMessage"
+                :type="promptSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="promptMessage = ''"
+              >
+                {{ promptMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="hits">
+              <h3>Pattern Hit Counts</h3>
+              <v-divider class="my-4"></v-divider>
+              <PatternHitCountMonitor />
+            </v-window-item>
           </v-window>
         </v-card-text>
       </v-col>
@@ -177,10 +238,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useDisplay } from "vuetify";
-import { getHealth, getStats, testDiscord } from "@/services/system";
+import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
+import PatternHitCountMonitor from "@/components/PatternHitCountMonitor.vue";
 
 const { lgAndUp } = useDisplay();
 
@@ -196,6 +258,56 @@ const actionMessage = ref("");
 const actionSuccess = ref(false);
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
+
+// Prompt tab state
+const promptTemplate = ref("");
+const promptLoading = ref(false);
+const promptSaving = ref(false);
+const promptResetting = ref(false);
+const promptMessage = ref("");
+const promptSuccess = ref(false);
+
+const fetchPrompt = async () => {
+  promptLoading.value = true;
+  try {
+    promptTemplate.value = await getSetting("ai_prompt_template");
+  } catch {
+    promptMessage.value = "Failed to load prompt template.";
+    promptSuccess.value = false;
+  } finally {
+    promptLoading.value = false;
+  }
+};
+
+const savePrompt = async () => {
+  promptSaving.value = true;
+  promptMessage.value = "";
+  try {
+    await updateSetting("ai_prompt_template", promptTemplate.value);
+    promptMessage.value = "Prompt template saved successfully.";
+    promptSuccess.value = true;
+  } catch {
+    promptMessage.value = "Failed to save prompt template.";
+    promptSuccess.value = false;
+  } finally {
+    promptSaving.value = false;
+  }
+};
+
+const resetPrompt = async () => {
+  promptResetting.value = true;
+  promptMessage.value = "";
+  try {
+    promptTemplate.value = await resetSetting("ai_prompt_template");
+    promptMessage.value = "Prompt template reset to default.";
+    promptSuccess.value = true;
+  } catch {
+    promptMessage.value = "Failed to reset prompt template.";
+    promptSuccess.value = false;
+  } finally {
+    promptResetting.value = false;
+  }
+};
 
 const formatUptime = (seconds: number) => {
   const d = Math.floor(seconds / 86400);
@@ -261,7 +373,10 @@ const handleDeleteAllAlerts = async () => {
   }
 };
 
-onMounted(fetchData);
+onMounted(() => {
+  fetchData();
+  fetchPrompt();
+});
 </script>
 
 <style scoped>
@@ -289,5 +404,11 @@ onMounted(fetchData);
   .settings-container :deep(.v-card-text) {
     padding: 16px 0 0 16px;
   }
+}
+
+.prompt-textarea :deep(textarea) {
+  font-family: monospace;
+  font-size: 0.85rem;
+  line-height: 1.5;
 }
 </style>

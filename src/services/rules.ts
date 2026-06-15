@@ -15,7 +15,15 @@ export const getPattern = async (id: number) => {
   return response.data;
 };
 
-export const updatePattern = async (id: number, data: { classification?: string; match_regex?: string }) => {
+export const updatePattern = async (
+  id: number,
+  data: {
+    classification?: string;
+    match_regex?: string;
+    title?: string;
+    ai_explanation?: string;
+  }
+) => {
   const response = await api.put(`/patterns/${id}`, data);
   return response.data;
 };

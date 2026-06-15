@@ -36,11 +36,58 @@
 
                     <!-- Pattern Info -->
                     <div class="pattern-title flex-grow-1">
-                      <h2 class="text-grey custom-heading">
-                        {{ patternLabel(pattern) }}
-                      </h2>
-                      <div v-if="pattern.ai_explanation" class="text-grey mt-1" style="font-size: 14px; line-height: 1.4; font-weight: 400; letter-spacing: 0.25px; opacity: 0.7;">
-                        {{ pattern.ai_explanation }}
+                      <div class="d-flex align-start ga-2">
+                        <h2 v-if="!editingTitle" class="text-grey custom-heading">
+                          {{ patternLabel(pattern) }}
+                        </h2>
+                        <div v-else class="w-100">
+                          <v-text-field
+                            v-model="titleDraft"
+                            variant="plain"
+                            density="default"
+                            hide-details
+                            class="inline-title-editor"
+                          ></v-text-field>
+                          <div class="d-flex ga-2 mt-2">
+                            <v-btn size="small" color="primary" :loading="savingTitle" @click="saveTitle">Save</v-btn>
+                            <v-btn size="small" variant="outlined" @click="cancelEditTitle">Cancel</v-btn>
+                          </div>
+                        </div>
+                        <v-btn
+                          v-if="!editingTitle"
+                          icon="mdi-pencil"
+                          size="x-small"
+                          variant="text"
+                          color="primary"
+                          @click="startEditTitle"
+                        ></v-btn>
+                      </div>
+
+                      <div class="d-flex align-start ga-2 mt-1">
+                        <div v-if="!editingAiExplanation" class="text-grey" style="font-size: 14px; line-height: 1.4; font-weight: 400; letter-spacing: 0.25px; opacity: 0.7;">
+                          {{ pattern.ai_explanation || "No AI explanation yet." }}
+                        </div>
+                        <div v-else class="w-100">
+                          <v-textarea
+                            v-model="aiExplanationDraft"
+                            variant="outlined"
+                            rows="3"
+                            auto-grow
+                            hide-details
+                          ></v-textarea>
+                          <div class="d-flex ga-2 mt-2">
+                            <v-btn size="small" color="primary" :loading="savingAiExplanation" @click="saveAiExplanation">Save</v-btn>
+                            <v-btn size="small" variant="outlined" @click="cancelEditAiExplanation">Cancel</v-btn>
+                          </div>
+                        </div>
+                        <v-btn
+                          v-if="!editingAiExplanation"
+                          icon="mdi-pencil"
+                          size="x-small"
+                          variant="text"
+                          color="primary"
+                          @click="startEditAiExplanation"
+                        ></v-btn>
                       </div>
                     </div>
                   </div>
@@ -229,6 +276,12 @@ const copyLabel = ref("Copy");
 const snackbar = ref(false);
 const regexExpanded = ref(false);
 const aiExpanded = ref(false);
+const editingTitle = ref(false);
+const titleDraft = ref("");
+const savingTitle = ref(false);
+const editingAiExplanation = ref(false);
+const aiExplanationDraft = ref("");
+const savingAiExplanation = ref(false);
 const deletingPattern = ref(false);
 const deletePatternDialog = ref(false);
 
@@ -295,6 +348,8 @@ const loadPatternData = async (id: number) => {
   overrideValue.value = "";
   regexValue.value = "";
   copyLabel.value = "Copy";
+  editingTitle.value = false;
+  editingAiExplanation.value = false;
   patternLogsPage.value = 1;
 
   const p = patterns.value.find((x) => x.id === id);
@@ -307,6 +362,56 @@ const loadPatternData = async (id: number) => {
     fetchPatternChart(id),
     fetchPatternLogData(id),
   ]);
+};
+
+const startEditTitle = () => {
+  if (!pattern.value) return;
+  titleDraft.value = pattern.value.title || "";
+  editingTitle.value = true;
+};
+
+const cancelEditTitle = () => {
+  editingTitle.value = false;
+};
+
+const saveTitle = async () => {
+  if (!pattern.value) return;
+  savingTitle.value = true;
+  try {
+    await updatePattern(pattern.value.id, { title: titleDraft.value.trim() || undefined });
+    await fetchPatterns();
+    editingTitle.value = false;
+  } catch {
+    error.value = "Failed to update title.";
+  } finally {
+    savingTitle.value = false;
+  }
+};
+
+const startEditAiExplanation = () => {
+  if (!pattern.value) return;
+  aiExplanationDraft.value = pattern.value.ai_explanation || "";
+  editingAiExplanation.value = true;
+};
+
+const cancelEditAiExplanation = () => {
+  editingAiExplanation.value = false;
+};
+
+const saveAiExplanation = async () => {
+  if (!pattern.value) return;
+  savingAiExplanation.value = true;
+  try {
+    await updatePattern(pattern.value.id, {
+      ai_explanation: aiExplanationDraft.value.trim() || undefined,
+    });
+    await fetchPatterns();
+    editingAiExplanation.value = false;
+  } catch {
+    error.value = "Failed to update AI explanation.";
+  } finally {
+    savingAiExplanation.value = false;
+  }
 };
 
 const fetchPatternChart = async (id: number) => {
@@ -587,5 +692,27 @@ watch(patternId, async (newId) => {
 .pattern-actions .v-btn {
   text-transform: none;
   font-weight: 400;
+}
+
+.inline-title-editor {
+  max-width: 100%;
+}
+
+.inline-title-editor :deep(.v-input__control),
+.inline-title-editor :deep(.v-field),
+.inline-title-editor :deep(.v-field__field) {
+  min-height: 40px !important;
+  padding: 0 !important;
+}
+
+.inline-title-editor :deep(input) {
+  color: #b1b8c0 !important;
+  font-size: 34px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.25px !important;
+  line-height: 40px !important;
+  font-family: var(--app-font-family) !important;
+  text-transform: uppercase;
+  padding: 0 !important;
 }
 </style>
