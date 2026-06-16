@@ -11,10 +11,10 @@
           color="primary"
         >
           <v-tab value="general">GENERAL</v-tab>
-          <v-tab value="actions">ACTIONS</v-tab>
-          <v-tab value="prompt">PROMPT</v-tab>
-          <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="health">BACKEND HEALTH</v-tab>
+          <v-tab value="hits">PATTERN HITS</v-tab>
+          <v-tab value="prompt">PROMPT</v-tab>
+          <v-tab value="actions">ACTIONS</v-tab>
         </v-tabs>
       </v-col>
 
@@ -65,6 +65,45 @@
                   <p class="text-body-2 mt-2">
                     This will permanently delete all alert data from the system. This
                     action cannot be undone.
+                  </p>
+                </div>
+
+                <div class="maintenance-action mt-6">
+                  <v-btn
+                    color="error"
+                    variant="elevated"
+                    min-width="260"
+                    elevation="2"
+                    prepend-icon="mdi-file-remove"
+                    :loading="deletingLogs"
+                    @click="deleteLogsDialog = true"
+                  >
+                    Delete All Logs
+                  </v-btn>
+                  <p class="text-body-2 mt-2">
+                    This will permanently delete all log data from the system. This
+                    action cannot be undone.
+                  </p>
+                </div>
+
+                <div class="maintenance-action mt-6">
+                  <v-btn
+                    color="error"
+                    variant="elevated"
+                    min-width="260"
+                    elevation="2"
+                    prepend-icon="mdi-shape-outline"
+                    :loading="deletingPatterns"
+                    @click="deletePatternsDialog = true"
+                  >
+                    Delete All Patterns
+                  </v-btn>
+                  <p class="text-body-2 mt-2">
+                    This will permanently delete all pattern data from the system,
+                    reset all log criticality levels, and start running logs through
+                    AI analysis again, which may incur costs. This action normally is
+                    only used if you've made a major model change, prompt change, etc.
+                    This action cannot be undone.
                   </p>
                 </div>
               </div>
@@ -241,6 +280,42 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="deleteLogsDialog" max-width="500">
+      <v-card>
+        <v-card-title class="text-h5">Delete All Logs</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete all logs? This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="deleteLogsDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="error" variant="text" @click="handleDeleteAllLogs">
+            Delete All
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
+    <v-dialog v-model="deletePatternsDialog" max-width="500">
+      <v-card>
+        <v-card-title class="text-h5">Delete All Patterns</v-card-title>
+        <v-card-text>
+          Are you sure you want to delete all patterns? This action cannot be undone.
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="deletePatternsDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="error" variant="text" @click="handleDeleteAllPatterns">
+            Delete All
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-sheet>
 </template>
 
@@ -249,6 +324,8 @@ import { ref, onMounted, computed } from "vue";
 import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
+import { deleteAllLogs } from "@/services/logs";
+import { deleteAllPatterns } from "@/services/rules";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
 import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
@@ -264,6 +341,10 @@ const refreshing = ref(false);
 const testingDiscord = ref(false);
 const deletingAlerts = ref(false);
 const deleteAlertsDialog = ref(false);
+const deletingLogs = ref(false);
+const deleteLogsDialog = ref(false);
+const deletingPatterns = ref(false);
+const deletePatternsDialog = ref(false);
 const actionMessage = ref("");
 const actionSuccess = ref(false);
 
@@ -387,6 +468,40 @@ const handleDeleteAllAlerts = async () => {
   } finally {
     deletingAlerts.value = false;
     deleteAlertsDialog.value = false;
+  }
+};
+
+const handleDeleteAllLogs = async () => {
+  deletingLogs.value = true;
+  actionMessage.value = "";
+  try {
+    const result = await deleteAllLogs();
+    actionMessage.value = `All logs have been successfully deleted (${result.deleted.toLocaleString()} rows).`;
+    actionSuccess.value = true;
+    await fetchData();
+  } catch {
+    actionMessage.value = "Failed to delete logs. Please try again.";
+    actionSuccess.value = false;
+  } finally {
+    deletingLogs.value = false;
+    deleteLogsDialog.value = false;
+  }
+};
+
+const handleDeleteAllPatterns = async () => {
+  deletingPatterns.value = true;
+  actionMessage.value = "";
+  try {
+    const result = await deleteAllPatterns();
+    actionMessage.value = `All patterns have been successfully deleted (${result.deleted.toLocaleString()} rows).`;
+    actionSuccess.value = true;
+    await fetchData();
+  } catch {
+    actionMessage.value = "Failed to delete patterns. Please try again.";
+    actionSuccess.value = false;
+  } finally {
+    deletingPatterns.value = false;
+    deletePatternsDialog.value = false;
   }
 };
 

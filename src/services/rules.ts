@@ -49,3 +49,8 @@ export const deletePattern = async (id: number) => {
   const response = await api.delete(`/patterns/${id}`);
   return response.data;
 };
+
+export const deleteAllPatterns = async () => {
+  const response = await api.delete<{ status: string; deleted: number }>("/patterns");
+  return response.data;
+};

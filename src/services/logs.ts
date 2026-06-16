@@ -33,3 +33,8 @@ export const getLogsNoiseHourly = async (hours = 24) => {
   const response = await api.get<{ hours: number; stats: HourlyStat[] }>("/logs/noise/hourly", { params: { hours } });
   return response.data.stats;
 };
+
+export const deleteAllLogs = async () => {
+  const response = await api.delete<{ status: string; deleted: number }>("/logs");
+  return response.data;
+};
