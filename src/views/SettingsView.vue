@@ -14,7 +14,8 @@
           <v-tab value="health">BACKEND HEALTH</v-tab>
           <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
-          <v-tab value="actions">ACTIONS</v-tab>
+          <v-tab value="notifications">NOTIFICATIONS</v-tab>
+          <v-tab value="actions">DANGER ACTIONS</v-tab>
         </v-tabs>
       </v-col>
 
@@ -29,27 +30,10 @@
             </v-window-item>
 
             <v-window-item value="actions">
-              <h3>Actions</h3>
+              <h3>Danger Actions</h3>
               <v-divider class="my-4"></v-divider>
 
               <div class="maintenance-actions">
-                <div class="maintenance-action mb-6">
-                  <v-btn
-                    color="primary"
-                    variant="elevated"
-                    min-width="260"
-                    elevation="2"
-                    prepend-icon="mdi-webhook"
-                    :loading="testingDiscord"
-                    @click="handleTestDiscord"
-                  >
-                    Test Discord Webhook
-                  </v-btn>
-                  <p class="text-body-2 mt-2">
-                    Sends a test message to the configured Discord webhook.
-                  </p>
-                </div>
-
                 <div class="maintenance-action">
                   <v-btn
                     color="error"
@@ -117,6 +101,94 @@
                 @click:close="actionMessage = ''"
               >
                 {{ actionMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="notifications">
+              <h3>Notifications</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-table class="settings-form-table" density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left" colspan="2">Setting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Discord Notifications</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="discordNotificationsEnabled"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="notificationsLoading || notificationsSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Enable or disable Discord notifications for alerts and events.</div>
+                        <div class="setting-default">Default: <span>Disabled</span></div>
+                        <div class="setting-suggested">Suggested: <span>At user's discretion, based on their notification preferences.</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Discord Webhook URL</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="discordWebhookUrl"
+                          variant="outlined"
+                          density="compact"
+                          :type="showDiscordWebhook ? 'text' : 'password'"
+                          :append-inner-icon="showDiscordWebhook ? 'mdi-eye-off' : 'mdi-eye'"
+                          @click:append-inner="showDiscordWebhook = !showDiscordWebhook"
+                          @blur="flushNotificationsAutoSave"
+                          autocomplete="off"
+                          :disabled="notificationsLoading || notificationsSaving"
+                          placeholder="Enter your Discord webhook URL"
+                          hide-details
+                          class="notification-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Webhook URL for the Discord channel where notifications will be sent.</div>
+                        <div class="setting-suggested">Suggested: <span>Obtain your own Discord webhook URL from your Discord server integrations. Go to Channel settings and choose integrations and create a new webhook to get the URL.</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <div class="d-flex flex-wrap ga-3 mt-4">
+                <v-btn
+                  color="primary"
+                  variant="outlined"
+                  prepend-icon="mdi-webhook"
+                  :loading="testingDiscord"
+                  :disabled="notificationsLoading || notificationsSaving"
+                  @click="handleTestDiscord"
+                >
+                  Test Discord Webhook
+                </v-btn>
+              </div>
+
+              <v-alert
+                v-if="notificationsMessage"
+                :type="notificationsSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="notificationsMessage = ''"
+              >
+                {{ notificationsMessage }}
               </v-alert>
             </v-window-item>
 
@@ -320,7 +392,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed } from "vue";
+import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
@@ -347,6 +419,15 @@ const deletingPatterns = ref(false);
 const deletePatternsDialog = ref(false);
 const actionMessage = ref("");
 const actionSuccess = ref(false);
+const notificationsLoading = ref(false);
+const notificationsSaving = ref(false);
+const notificationsMessage = ref("");
+const notificationsSuccess = ref(false);
+const discordNotificationsEnabled = ref(false);
+const discordWebhookUrl = ref("");
+const showDiscordWebhook = ref(false);
+const notificationsPendingSave = ref(false);
+let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const AI_API_COST_PER_PATTERN = 0.00025;
@@ -355,6 +436,91 @@ const aiApiCosts = computed(() => {
   const totalPatterns = stats.value?.total_patterns ?? 0;
   const totalCost = totalPatterns * AI_API_COST_PER_PATTERN;
   return `$${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 6 })}`;
+});
+
+const parseBoolSetting = (value: string) => {
+  const normalized = String(value || "").trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
+};
+
+const fetchNotificationsSettings = async () => {
+  notificationsLoading.value = true;
+  notificationsMessage.value = "";
+  try {
+    const [enabled, webhook] = await Promise.allSettled([
+      getSetting("discord_notifications_enabled"),
+      getSetting("discord_webhook_url"),
+    ]);
+
+    if (enabled.status === "fulfilled") {
+      discordNotificationsEnabled.value = parseBoolSetting(enabled.value);
+    } else {
+      discordNotificationsEnabled.value = false;
+    }
+
+    if (webhook.status === "fulfilled") {
+      discordWebhookUrl.value = webhook.value || "";
+    } else {
+      discordWebhookUrl.value = "";
+    }
+  } catch {
+    notificationsMessage.value = "Failed to load notification settings.";
+    notificationsSuccess.value = false;
+  } finally {
+    notificationsLoading.value = false;
+  }
+};
+
+const saveNotificationsSettings = async () => {
+  if (notificationsSaving.value) {
+    notificationsPendingSave.value = true;
+    return;
+  }
+
+  notificationsSaving.value = true;
+  notificationsMessage.value = "";
+  try {
+    await Promise.all([
+      updateSetting("discord_notifications_enabled", discordNotificationsEnabled.value ? "true" : "false"),
+      updateSetting("discord_webhook_url", discordWebhookUrl.value.trim()),
+    ]);
+    notificationsMessage.value = "Notification settings auto-saved.";
+    notificationsSuccess.value = true;
+  } catch {
+    notificationsMessage.value = "Failed to save notification settings.";
+    notificationsSuccess.value = false;
+  } finally {
+    notificationsSaving.value = false;
+    if (notificationsPendingSave.value) {
+      scheduleNotificationsAutoSave();
+    }
+  }
+};
+
+const scheduleNotificationsAutoSave = () => {
+  if (notificationsAutoSaveTimer) clearTimeout(notificationsAutoSaveTimer);
+  notificationsAutoSaveTimer = setTimeout(() => {
+    notificationsAutoSaveTimer = null;
+    if (!notificationsPendingSave.value) return;
+    notificationsPendingSave.value = false;
+    void saveNotificationsSettings();
+  }, 600);
+};
+
+const flushNotificationsAutoSave = () => {
+  if (!notificationsPendingSave.value) return;
+  if (notificationsAutoSaveTimer) {
+    clearTimeout(notificationsAutoSaveTimer);
+    notificationsAutoSaveTimer = null;
+  }
+  notificationsPendingSave.value = false;
+  void saveNotificationsSettings();
+};
+
+watch([discordNotificationsEnabled, discordWebhookUrl], () => {
+  if (notificationsLoading.value) return;
+  notificationsPendingSave.value = true;
+  scheduleNotificationsAutoSave();
 });
 
 // Prompt tab state
@@ -441,14 +607,14 @@ const refreshHealth = async () => {
 
 const handleTestDiscord = async () => {
   testingDiscord.value = true;
-  actionMessage.value = "";
+  notificationsMessage.value = "";
   try {
     await testDiscord();
-    actionMessage.value = "Discord test message sent successfully.";
-    actionSuccess.value = true;
+    notificationsMessage.value = "Discord test message sent successfully.";
+    notificationsSuccess.value = true;
   } catch {
-    actionMessage.value = "Failed to send Discord test message.";
-    actionSuccess.value = false;
+    notificationsMessage.value = "Failed to send Discord test message.";
+    notificationsSuccess.value = false;
   } finally {
     testingDiscord.value = false;
   }
@@ -508,6 +674,11 @@ const handleDeleteAllPatterns = async () => {
 onMounted(() => {
   fetchData();
   fetchPrompt();
+  fetchNotificationsSettings();
+});
+
+onUnmounted(() => {
+  if (notificationsAutoSaveTimer) clearTimeout(notificationsAutoSaveTimer);
 });
 </script>
 
@@ -542,5 +713,66 @@ onMounted(() => {
   font-family: monospace;
   font-size: 0.85rem;
   line-height: 1.5;
+}
+
+.settings-form-table {
+  background-color: transparent !important;
+}
+
+.settings-form-table :deep(th) {
+  color: #b1b8c0 !important;
+}
+
+.settings-form-table :deep(td) {
+  vertical-align: top;
+  border-bottom: none !important;
+}
+
+.settings-form-table :deep(tbody tr) {
+  border: none !important;
+}
+
+.setting-name-cell {
+  width: 220px;
+  min-width: 220px;
+  padding-top: 10px;
+}
+
+.align-top {
+  vertical-align: top !important;
+}
+
+.setting-row-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  width: 100%;
+}
+
+.setting-meta {
+  margin-bottom: 8px;
+}
+
+.setting-details {
+  margin-bottom: 2px;
+  color: #b1b8c0;
+  line-height: 1.4;
+}
+
+.setting-default,
+.setting-suggested {
+  color: #8ab4f8;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.setting-default span,
+.setting-suggested span {
+  color: #b1b8c0;
+}
+
+.notification-input {
+  max-width: 100%;
 }
 </style>
