@@ -1347,6 +1347,8 @@ const handleDeleteAllPatterns = async () => {
   }
 };
 
+let healthRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
 onMounted(() => {
   fetchData();
   fetchPrompt();
@@ -1354,6 +1356,7 @@ onMounted(() => {
   fetchProcessingSettings();
   fetchNetworkTuningSettings();
   fetchRetentionSettings();
+  healthRefreshTimer = setInterval(fetchData, 60_000);
 });
 
 onUnmounted(() => {
@@ -1361,6 +1364,7 @@ onUnmounted(() => {
   if (processingAutoSaveTimer) clearTimeout(processingAutoSaveTimer);
   if (networkTuningAutoSaveTimer) clearTimeout(networkTuningAutoSaveTimer);
   if (retentionAutoSaveTimer) clearTimeout(retentionAutoSaveTimer);
+  if (healthRefreshTimer) clearInterval(healthRefreshTimer);
 });
 </script>
 
