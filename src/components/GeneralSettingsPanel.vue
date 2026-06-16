@@ -4,46 +4,54 @@
       General application settings. Edit the minimum message length used by the backend.
     </p>
 
-    <v-card color="#0d1117" variant="outlined" class="pa-4">
-      <div class="d-flex flex-column flex-sm-row align-sm-center justify-space-between ga-4">
-        <div class="flex-grow-1">
-          <div class="text-caption text-medium-emphasis text-uppercase">min_message_length</div>
-          <div class="text-body-2 text-medium-emphasis">
-            Messages shorter than this value will be filtered out by the backend.
-          </div>
-        </div>
+    <v-table class="settings-form-table" density="compact">
+      <thead>
+        <tr>
+          <th class="text-left" colspan="2">Setting</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="setting-name-cell">
+            <div class="font-weight-medium">Minimum Message Length</div>
+          </td>
+          <td class="align-top">
+            <div class="setting-row-flex">
+              <v-text-field
+                v-model="minMessageLength"
+                type="number"
+                min="0"
+                variant="outlined"
+                density="compact"
+                :loading="loading || saving"
+                :disabled="loading || saving"
+                hide-details
+                class="general-setting-input"
+                @blur="flushAutoSave"
+              />
+            </div>
+            <div class="setting-meta">
+              <div class="setting-details">
+                Messages shorter than this value will be filtered out by the backend.
+              </div>
+              <div class="setting-default">Default: <span>0</span></div>
+              <div class="setting-suggested">Suggested: <span>Use 0 unless you need to suppress very short messages.</span></div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </v-table>
 
-        <div class="general-setting-input">
-          <v-text-field
-            v-model="minMessageLength"
-            type="number"
-            min="0"
-            variant="outlined"
-            density="compact"
-            label="Minimum Message Length"
-            :loading="loading || saving"
-            :disabled="loading || resetting"
-            hide-details
-            @blur="flushAutoSave"
-          />
-        </div>
-      </div>
-
-      <div class="d-flex flex-wrap ga-3 mt-4">
-        
-      </div>
-
-      <v-alert
-        v-if="message"
-        :type="success ? 'success' : 'error'"
-        variant="tonal"
-        class="mt-4"
-        closable
-        @click:close="message = ''"
-      >
-        {{ message }}
-      </v-alert>
-    </v-card>
+    <v-alert
+      v-if="message"
+      :type="success ? 'success' : 'error'"
+      variant="tonal"
+      class="mt-4"
+      closable
+      @click:close="message = ''"
+    >
+      {{ message }}
+    </v-alert>
   </div>
 </template>
 
@@ -143,9 +151,67 @@ onMounted(fetchSetting);
 </script>
 
 <style scoped>
-.general-setting-input {
+.settings-form-table {
+  background-color: transparent !important;
+}
+
+.settings-form-table :deep(th) {
+  color: #b1b8c0 !important;
+}
+
+.settings-form-table :deep(td) {
+  vertical-align: top;
+  border-bottom: none !important;
+}
+
+.settings-form-table :deep(tbody tr) {
+  border: none !important;
+}
+
+.setting-name-cell {
+  width: 220px;
   min-width: 220px;
-  max-width: 280px;
+  padding-top: 10px;
+}
+
+.align-top {
+  vertical-align: top !important;
+}
+
+.setting-row-flex {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  width: 100%;
+}
+
+.setting-meta {
+  margin-bottom: 8px;
+}
+
+.setting-details {
+  margin-bottom: 2px;
+  color: #b1b8c0;
+  line-height: 1.4;
+}
+
+.setting-default,
+.setting-suggested {
+  color: #8ab4f8;
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.setting-default span,
+.setting-suggested span {
+  color: #b1b8c0;
+}
+
+.general-setting-input {
+  margin-left: 16px;
+  min-width: 220px;
+  max-width: 360px;
   width: 100%;
 }
 </style>
