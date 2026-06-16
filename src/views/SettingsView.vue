@@ -195,7 +195,7 @@
                     <td class="font-weight-medium">{{ stats.total_patterns.toLocaleString() }}</td>
                   </tr>
                   <tr v-if="stats?.total_patterns != null">
-                    <td class="text-medium-emphasis">AI API Costs</td>
+                    <td class="text-medium-emphasis">Estimated AI API Costs</td>
                     <td class="font-weight-medium">{{ aiApiCosts }}</td>
                   </tr>
                   <tr v-if="stats?.pending_patterns != null">
