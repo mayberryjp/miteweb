@@ -830,6 +830,8 @@ const notificationsMessage = ref("");
 const notificationsSuccess = ref(false);
 const discordNotificationsEnabled = ref(false);
 const discordWebhookUrl = ref("");
+const initialDiscordNotificationsEnabled = ref(false);
+const initialDiscordWebhookUrl = ref("");
 const showDiscordWebhook = ref(false);
 const notificationsPendingSave = ref(false);
 let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -848,6 +850,14 @@ const parseBoolSetting = (value: string) => {
   return normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on";
 };
 
+const normalizeSettingValue = (value: string) => value.trim();
+
+const notificationsDirty = computed(
+  () =>
+    discordNotificationsEnabled.value !== initialDiscordNotificationsEnabled.value
+    || normalizeSettingValue(discordWebhookUrl.value) !== initialDiscordWebhookUrl.value,
+);
+
 const fetchNotificationsSettings = async () => {
   notificationsLoading.value = true;
   notificationsMessage.value = "";
@@ -857,17 +867,17 @@ const fetchNotificationsSettings = async () => {
       getSetting("discord_webhook_url"),
     ]);
 
-    if (enabled.status === "fulfilled") {
-      discordNotificationsEnabled.value = parseBoolSetting(enabled.value);
-    } else {
-      discordNotificationsEnabled.value = false;
-    }
+    const loadedEnabled = enabled.status === "fulfilled"
+      ? parseBoolSetting(enabled.value)
+      : false;
+    const loadedWebhook = webhook.status === "fulfilled"
+      ? normalizeSettingValue(webhook.value || "")
+      : "";
 
-    if (webhook.status === "fulfilled") {
-      discordWebhookUrl.value = webhook.value || "";
-    } else {
-      discordWebhookUrl.value = "";
-    }
+    discordNotificationsEnabled.value = loadedEnabled;
+    discordWebhookUrl.value = loadedWebhook;
+    initialDiscordNotificationsEnabled.value = loadedEnabled;
+    initialDiscordWebhookUrl.value = loadedWebhook;
   } catch {
     notificationsMessage.value = "Failed to load notification settings.";
     notificationsSuccess.value = false;
@@ -877,6 +887,7 @@ const fetchNotificationsSettings = async () => {
 };
 
 const saveNotificationsSettings = async () => {
+  if (!notificationsDirty.value) return;
   if (notificationsSaving.value) {
     notificationsPendingSave.value = true;
     return;
@@ -885,10 +896,23 @@ const saveNotificationsSettings = async () => {
   notificationsSaving.value = true;
   notificationsMessage.value = "";
   try {
-    await Promise.all([
-      updateSetting("discord_notifications_enabled", discordNotificationsEnabled.value ? "true" : "false"),
-      updateSetting("discord_webhook_url", discordWebhookUrl.value.trim()),
-    ]);
+    const normalizedWebhook = normalizeSettingValue(discordWebhookUrl.value);
+
+    const updates: Promise<void>[] = [];
+    if (discordNotificationsEnabled.value !== initialDiscordNotificationsEnabled.value) {
+      updates.push(updateSetting("discord_notifications_enabled", discordNotificationsEnabled.value ? "true" : "false"));
+    }
+    if (normalizedWebhook !== initialDiscordWebhookUrl.value) {
+      updates.push(updateSetting("discord_webhook_url", normalizedWebhook));
+    }
+
+    if (updates.length === 0) return;
+
+    await Promise.all(updates);
+
+    discordWebhookUrl.value = normalizedWebhook;
+    initialDiscordNotificationsEnabled.value = discordNotificationsEnabled.value;
+    initialDiscordWebhookUrl.value = normalizedWebhook;
     notificationsMessage.value = "Notification settings auto-saved.";
     notificationsSuccess.value = true;
   } catch {
@@ -896,7 +920,7 @@ const saveNotificationsSettings = async () => {
     notificationsSuccess.value = false;
   } finally {
     notificationsSaving.value = false;
-    if (notificationsPendingSave.value) {
+    if (notificationsPendingSave.value && notificationsDirty.value) {
       scheduleNotificationsAutoSave();
     }
   }
@@ -924,6 +948,7 @@ const flushNotificationsAutoSave = () => {
 
 watch([discordNotificationsEnabled, discordWebhookUrl], () => {
   if (notificationsLoading.value) return;
+  if (!notificationsDirty.value) return;
   notificationsPendingSave.value = true;
   scheduleNotificationsAutoSave();
 });
@@ -939,8 +964,24 @@ const processorIntervalSeconds = ref("");
 const processorFetchLimit = ref("");
 const retentionCheckIntervalSeconds = ref("");
 const regexCacheTtlSeconds = ref("");
+const initialAiDiscoveryIntervalSeconds = ref("");
+const initialAiBatchSize = ref("");
+const initialProcessorIntervalSeconds = ref("");
+const initialProcessorFetchLimit = ref("");
+const initialRetentionCheckIntervalSeconds = ref("");
+const initialRegexCacheTtlSeconds = ref("");
 const processingPendingSave = ref(false);
 let processingAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const processingDirty = computed(
+  () =>
+    normalizeSettingValue(aiDiscoveryIntervalSeconds.value) !== initialAiDiscoveryIntervalSeconds.value
+    || normalizeSettingValue(aiBatchSize.value) !== initialAiBatchSize.value
+    || normalizeSettingValue(processorIntervalSeconds.value) !== initialProcessorIntervalSeconds.value
+    || normalizeSettingValue(processorFetchLimit.value) !== initialProcessorFetchLimit.value
+    || normalizeSettingValue(retentionCheckIntervalSeconds.value) !== initialRetentionCheckIntervalSeconds.value
+    || normalizeSettingValue(regexCacheTtlSeconds.value) !== initialRegexCacheTtlSeconds.value,
+);
 
 const fetchProcessingSettings = async () => {
   processingLoading.value = true;
@@ -955,12 +996,26 @@ const fetchProcessingSettings = async () => {
       getSetting("regex_cache_ttl_seconds"),
     ]);
 
-    aiDiscoveryIntervalSeconds.value = results[0].status === "fulfilled" ? results[0].value || "" : "";
-    aiBatchSize.value = results[1].status === "fulfilled" ? results[1].value || "" : "";
-    processorIntervalSeconds.value = results[2].status === "fulfilled" ? results[2].value || "" : "";
-    processorFetchLimit.value = results[3].status === "fulfilled" ? results[3].value || "" : "";
-    retentionCheckIntervalSeconds.value = results[4].status === "fulfilled" ? results[4].value || "" : "";
-    regexCacheTtlSeconds.value = results[5].status === "fulfilled" ? results[5].value || "" : "";
+    const loadedAiDiscoveryIntervalSeconds = results[0].status === "fulfilled" ? normalizeSettingValue(results[0].value || "") : "";
+    const loadedAiBatchSize = results[1].status === "fulfilled" ? normalizeSettingValue(results[1].value || "") : "";
+    const loadedProcessorIntervalSeconds = results[2].status === "fulfilled" ? normalizeSettingValue(results[2].value || "") : "";
+    const loadedProcessorFetchLimit = results[3].status === "fulfilled" ? normalizeSettingValue(results[3].value || "") : "";
+    const loadedRetentionCheckIntervalSeconds = results[4].status === "fulfilled" ? normalizeSettingValue(results[4].value || "") : "";
+    const loadedRegexCacheTtlSeconds = results[5].status === "fulfilled" ? normalizeSettingValue(results[5].value || "") : "";
+
+    aiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
+    aiBatchSize.value = loadedAiBatchSize;
+    processorIntervalSeconds.value = loadedProcessorIntervalSeconds;
+    processorFetchLimit.value = loadedProcessorFetchLimit;
+    retentionCheckIntervalSeconds.value = loadedRetentionCheckIntervalSeconds;
+    regexCacheTtlSeconds.value = loadedRegexCacheTtlSeconds;
+
+    initialAiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
+    initialAiBatchSize.value = loadedAiBatchSize;
+    initialProcessorIntervalSeconds.value = loadedProcessorIntervalSeconds;
+    initialProcessorFetchLimit.value = loadedProcessorFetchLimit;
+    initialRetentionCheckIntervalSeconds.value = loadedRetentionCheckIntervalSeconds;
+    initialRegexCacheTtlSeconds.value = loadedRegexCacheTtlSeconds;
   } catch {
     processingMessage.value = "Failed to load processing settings.";
     processingSuccess.value = false;
@@ -970,6 +1025,7 @@ const fetchProcessingSettings = async () => {
 };
 
 const saveProcessingSettings = async () => {
+  if (!processingDirty.value) return;
   if (processingSaving.value) {
     processingPendingSave.value = true;
     return;
@@ -978,14 +1034,50 @@ const saveProcessingSettings = async () => {
   processingSaving.value = true;
   processingMessage.value = "";
   try {
-    await Promise.all([
-      updateSetting("ai_discovery_interval_seconds", aiDiscoveryIntervalSeconds.value.trim()),
-      updateSetting("ai_batch_size", aiBatchSize.value.trim()),
-      updateSetting("processor_interval_seconds", processorIntervalSeconds.value.trim()),
-      updateSetting("processor_fetch_limit", processorFetchLimit.value.trim()),
-      updateSetting("retention_check_interval_seconds", retentionCheckIntervalSeconds.value.trim()),
-      updateSetting("regex_cache_ttl_seconds", regexCacheTtlSeconds.value.trim()),
-    ]);
+    const normalizedAiDiscoveryIntervalSeconds = normalizeSettingValue(aiDiscoveryIntervalSeconds.value);
+    const normalizedAiBatchSize = normalizeSettingValue(aiBatchSize.value);
+    const normalizedProcessorIntervalSeconds = normalizeSettingValue(processorIntervalSeconds.value);
+    const normalizedProcessorFetchLimit = normalizeSettingValue(processorFetchLimit.value);
+    const normalizedRetentionCheckIntervalSeconds = normalizeSettingValue(retentionCheckIntervalSeconds.value);
+    const normalizedRegexCacheTtlSeconds = normalizeSettingValue(regexCacheTtlSeconds.value);
+
+    const updates: Promise<void>[] = [];
+    if (normalizedAiDiscoveryIntervalSeconds !== initialAiDiscoveryIntervalSeconds.value) {
+      updates.push(updateSetting("ai_discovery_interval_seconds", normalizedAiDiscoveryIntervalSeconds));
+    }
+    if (normalizedAiBatchSize !== initialAiBatchSize.value) {
+      updates.push(updateSetting("ai_batch_size", normalizedAiBatchSize));
+    }
+    if (normalizedProcessorIntervalSeconds !== initialProcessorIntervalSeconds.value) {
+      updates.push(updateSetting("processor_interval_seconds", normalizedProcessorIntervalSeconds));
+    }
+    if (normalizedProcessorFetchLimit !== initialProcessorFetchLimit.value) {
+      updates.push(updateSetting("processor_fetch_limit", normalizedProcessorFetchLimit));
+    }
+    if (normalizedRetentionCheckIntervalSeconds !== initialRetentionCheckIntervalSeconds.value) {
+      updates.push(updateSetting("retention_check_interval_seconds", normalizedRetentionCheckIntervalSeconds));
+    }
+    if (normalizedRegexCacheTtlSeconds !== initialRegexCacheTtlSeconds.value) {
+      updates.push(updateSetting("regex_cache_ttl_seconds", normalizedRegexCacheTtlSeconds));
+    }
+
+    if (updates.length === 0) return;
+
+    await Promise.all(updates);
+
+    aiDiscoveryIntervalSeconds.value = normalizedAiDiscoveryIntervalSeconds;
+    aiBatchSize.value = normalizedAiBatchSize;
+    processorIntervalSeconds.value = normalizedProcessorIntervalSeconds;
+    processorFetchLimit.value = normalizedProcessorFetchLimit;
+    retentionCheckIntervalSeconds.value = normalizedRetentionCheckIntervalSeconds;
+    regexCacheTtlSeconds.value = normalizedRegexCacheTtlSeconds;
+
+    initialAiDiscoveryIntervalSeconds.value = normalizedAiDiscoveryIntervalSeconds;
+    initialAiBatchSize.value = normalizedAiBatchSize;
+    initialProcessorIntervalSeconds.value = normalizedProcessorIntervalSeconds;
+    initialProcessorFetchLimit.value = normalizedProcessorFetchLimit;
+    initialRetentionCheckIntervalSeconds.value = normalizedRetentionCheckIntervalSeconds;
+    initialRegexCacheTtlSeconds.value = normalizedRegexCacheTtlSeconds;
     processingMessage.value = "Processing settings auto-saved.";
     processingSuccess.value = true;
   } catch {
@@ -993,7 +1085,7 @@ const saveProcessingSettings = async () => {
     processingSuccess.value = false;
   } finally {
     processingSaving.value = false;
-    if (processingPendingSave.value) {
+    if (processingPendingSave.value && processingDirty.value) {
       scheduleProcessingAutoSave();
     }
   }
@@ -1021,6 +1113,7 @@ const flushProcessingAutoSave = () => {
 
 watch([aiDiscoveryIntervalSeconds, aiBatchSize, processorIntervalSeconds, processorFetchLimit, retentionCheckIntervalSeconds, regexCacheTtlSeconds], () => {
   if (processingLoading.value) return;
+  if (!processingDirty.value) return;
   processingPendingSave.value = true;
   scheduleProcessingAutoSave();
 });
@@ -1035,8 +1128,22 @@ const udpBatchFlushIntervalSeconds = ref("");
 const udpRecvBufferBytes = ref("");
 const tcpBatchSize = ref("");
 const tcpBatchFlushIntervalSeconds = ref("");
+const initialUdpBatchSize = ref("");
+const initialUdpBatchFlushIntervalSeconds = ref("");
+const initialUdpRecvBufferBytes = ref("");
+const initialTcpBatchSize = ref("");
+const initialTcpBatchFlushIntervalSeconds = ref("");
 const networkTuningPendingSave = ref(false);
 let networkTuningAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const networkTuningDirty = computed(
+  () =>
+    normalizeSettingValue(udpBatchSize.value) !== initialUdpBatchSize.value
+    || normalizeSettingValue(udpBatchFlushIntervalSeconds.value) !== initialUdpBatchFlushIntervalSeconds.value
+    || normalizeSettingValue(udpRecvBufferBytes.value) !== initialUdpRecvBufferBytes.value
+    || normalizeSettingValue(tcpBatchSize.value) !== initialTcpBatchSize.value
+    || normalizeSettingValue(tcpBatchFlushIntervalSeconds.value) !== initialTcpBatchFlushIntervalSeconds.value,
+);
 
 const fetchNetworkTuningSettings = async () => {
   networkTuningLoading.value = true;
@@ -1050,11 +1157,23 @@ const fetchNetworkTuningSettings = async () => {
       getSetting("tcp_batch_flush_interval_seconds"),
     ]);
 
-    udpBatchSize.value = results[0].status === "fulfilled" ? results[0].value || "" : "";
-    udpBatchFlushIntervalSeconds.value = results[1].status === "fulfilled" ? results[1].value || "" : "";
-    udpRecvBufferBytes.value = results[2].status === "fulfilled" ? results[2].value || "" : "";
-    tcpBatchSize.value = results[3].status === "fulfilled" ? results[3].value || "" : "";
-    tcpBatchFlushIntervalSeconds.value = results[4].status === "fulfilled" ? results[4].value || "" : "";
+    const loadedUdpBatchSize = results[0].status === "fulfilled" ? normalizeSettingValue(results[0].value || "") : "";
+    const loadedUdpBatchFlushIntervalSeconds = results[1].status === "fulfilled" ? normalizeSettingValue(results[1].value || "") : "";
+    const loadedUdpRecvBufferBytes = results[2].status === "fulfilled" ? normalizeSettingValue(results[2].value || "") : "";
+    const loadedTcpBatchSize = results[3].status === "fulfilled" ? normalizeSettingValue(results[3].value || "") : "";
+    const loadedTcpBatchFlushIntervalSeconds = results[4].status === "fulfilled" ? normalizeSettingValue(results[4].value || "") : "";
+
+    udpBatchSize.value = loadedUdpBatchSize;
+    udpBatchFlushIntervalSeconds.value = loadedUdpBatchFlushIntervalSeconds;
+    udpRecvBufferBytes.value = loadedUdpRecvBufferBytes;
+    tcpBatchSize.value = loadedTcpBatchSize;
+    tcpBatchFlushIntervalSeconds.value = loadedTcpBatchFlushIntervalSeconds;
+
+    initialUdpBatchSize.value = loadedUdpBatchSize;
+    initialUdpBatchFlushIntervalSeconds.value = loadedUdpBatchFlushIntervalSeconds;
+    initialUdpRecvBufferBytes.value = loadedUdpRecvBufferBytes;
+    initialTcpBatchSize.value = loadedTcpBatchSize;
+    initialTcpBatchFlushIntervalSeconds.value = loadedTcpBatchFlushIntervalSeconds;
   } catch {
     networkTuningMessage.value = "Failed to load network tuning settings.";
     networkTuningSuccess.value = false;
@@ -1064,6 +1183,7 @@ const fetchNetworkTuningSettings = async () => {
 };
 
 const saveNetworkTuningSettings = async () => {
+  if (!networkTuningDirty.value) return;
   if (networkTuningSaving.value) {
     networkTuningPendingSave.value = true;
     return;
@@ -1072,13 +1192,44 @@ const saveNetworkTuningSettings = async () => {
   networkTuningSaving.value = true;
   networkTuningMessage.value = "";
   try {
-    await Promise.all([
-      updateSetting("udp_batch_size", udpBatchSize.value.trim()),
-      updateSetting("udp_batch_flush_interval_seconds", udpBatchFlushIntervalSeconds.value.trim()),
-      updateSetting("udp_recv_buffer_bytes", udpRecvBufferBytes.value.trim()),
-      updateSetting("tcp_batch_size", tcpBatchSize.value.trim()),
-      updateSetting("tcp_batch_flush_interval_seconds", tcpBatchFlushIntervalSeconds.value.trim()),
-    ]);
+    const normalizedUdpBatchSize = normalizeSettingValue(udpBatchSize.value);
+    const normalizedUdpBatchFlushIntervalSeconds = normalizeSettingValue(udpBatchFlushIntervalSeconds.value);
+    const normalizedUdpRecvBufferBytes = normalizeSettingValue(udpRecvBufferBytes.value);
+    const normalizedTcpBatchSize = normalizeSettingValue(tcpBatchSize.value);
+    const normalizedTcpBatchFlushIntervalSeconds = normalizeSettingValue(tcpBatchFlushIntervalSeconds.value);
+
+    const updates: Promise<void>[] = [];
+    if (normalizedUdpBatchSize !== initialUdpBatchSize.value) {
+      updates.push(updateSetting("udp_batch_size", normalizedUdpBatchSize));
+    }
+    if (normalizedUdpBatchFlushIntervalSeconds !== initialUdpBatchFlushIntervalSeconds.value) {
+      updates.push(updateSetting("udp_batch_flush_interval_seconds", normalizedUdpBatchFlushIntervalSeconds));
+    }
+    if (normalizedUdpRecvBufferBytes !== initialUdpRecvBufferBytes.value) {
+      updates.push(updateSetting("udp_recv_buffer_bytes", normalizedUdpRecvBufferBytes));
+    }
+    if (normalizedTcpBatchSize !== initialTcpBatchSize.value) {
+      updates.push(updateSetting("tcp_batch_size", normalizedTcpBatchSize));
+    }
+    if (normalizedTcpBatchFlushIntervalSeconds !== initialTcpBatchFlushIntervalSeconds.value) {
+      updates.push(updateSetting("tcp_batch_flush_interval_seconds", normalizedTcpBatchFlushIntervalSeconds));
+    }
+
+    if (updates.length === 0) return;
+
+    await Promise.all(updates);
+
+    udpBatchSize.value = normalizedUdpBatchSize;
+    udpBatchFlushIntervalSeconds.value = normalizedUdpBatchFlushIntervalSeconds;
+    udpRecvBufferBytes.value = normalizedUdpRecvBufferBytes;
+    tcpBatchSize.value = normalizedTcpBatchSize;
+    tcpBatchFlushIntervalSeconds.value = normalizedTcpBatchFlushIntervalSeconds;
+
+    initialUdpBatchSize.value = normalizedUdpBatchSize;
+    initialUdpBatchFlushIntervalSeconds.value = normalizedUdpBatchFlushIntervalSeconds;
+    initialUdpRecvBufferBytes.value = normalizedUdpRecvBufferBytes;
+    initialTcpBatchSize.value = normalizedTcpBatchSize;
+    initialTcpBatchFlushIntervalSeconds.value = normalizedTcpBatchFlushIntervalSeconds;
     networkTuningMessage.value = "Network tuning settings auto-saved.";
     networkTuningSuccess.value = true;
   } catch {
@@ -1086,7 +1237,7 @@ const saveNetworkTuningSettings = async () => {
     networkTuningSuccess.value = false;
   } finally {
     networkTuningSaving.value = false;
-    if (networkTuningPendingSave.value) {
+    if (networkTuningPendingSave.value && networkTuningDirty.value) {
       scheduleNetworkTuningAutoSave();
     }
   }
@@ -1114,6 +1265,7 @@ const flushNetworkTuningAutoSave = () => {
 
 watch([udpBatchSize, udpBatchFlushIntervalSeconds, udpRecvBufferBytes, tcpBatchSize, tcpBatchFlushIntervalSeconds], () => {
   if (networkTuningLoading.value) return;
+  if (!networkTuningDirty.value) return;
   networkTuningPendingSave.value = true;
   scheduleNetworkTuningAutoSave();
 });
@@ -1125,8 +1277,16 @@ const retentionMessage = ref("");
 const retentionSuccess = ref(false);
 const logRetentionDays = ref("");
 const alertRetentionDays = ref("");
+const initialLogRetentionDays = ref("");
+const initialAlertRetentionDays = ref("");
 const retentionPendingSave = ref(false);
 let retentionAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const retentionDirty = computed(
+  () =>
+    normalizeSettingValue(logRetentionDays.value) !== initialLogRetentionDays.value
+    || normalizeSettingValue(alertRetentionDays.value) !== initialAlertRetentionDays.value,
+);
 
 const fetchRetentionSettings = async () => {
   retentionLoading.value = true;
@@ -1137,8 +1297,13 @@ const fetchRetentionSettings = async () => {
       getSetting("alert_retention_days"),
     ]);
 
-    logRetentionDays.value = results[0].status === "fulfilled" ? results[0].value || "" : "";
-    alertRetentionDays.value = results[1].status === "fulfilled" ? results[1].value || "" : "";
+    const loadedLogRetentionDays = results[0].status === "fulfilled" ? normalizeSettingValue(results[0].value || "") : "";
+    const loadedAlertRetentionDays = results[1].status === "fulfilled" ? normalizeSettingValue(results[1].value || "") : "";
+
+    logRetentionDays.value = loadedLogRetentionDays;
+    alertRetentionDays.value = loadedAlertRetentionDays;
+    initialLogRetentionDays.value = loadedLogRetentionDays;
+    initialAlertRetentionDays.value = loadedAlertRetentionDays;
   } catch {
     retentionMessage.value = "Failed to load retention settings.";
     retentionSuccess.value = false;
@@ -1148,6 +1313,7 @@ const fetchRetentionSettings = async () => {
 };
 
 const saveRetentionSettings = async () => {
+  if (!retentionDirty.value) return;
   if (retentionSaving.value) {
     retentionPendingSave.value = true;
     return;
@@ -1156,10 +1322,25 @@ const saveRetentionSettings = async () => {
   retentionSaving.value = true;
   retentionMessage.value = "";
   try {
-    await Promise.all([
-      updateSetting("log_retention_days", logRetentionDays.value.trim()),
-      updateSetting("alert_retention_days", alertRetentionDays.value.trim()),
-    ]);
+    const normalizedLogRetentionDays = normalizeSettingValue(logRetentionDays.value);
+    const normalizedAlertRetentionDays = normalizeSettingValue(alertRetentionDays.value);
+
+    const updates: Promise<void>[] = [];
+    if (normalizedLogRetentionDays !== initialLogRetentionDays.value) {
+      updates.push(updateSetting("log_retention_days", normalizedLogRetentionDays));
+    }
+    if (normalizedAlertRetentionDays !== initialAlertRetentionDays.value) {
+      updates.push(updateSetting("alert_retention_days", normalizedAlertRetentionDays));
+    }
+
+    if (updates.length === 0) return;
+
+    await Promise.all(updates);
+
+    logRetentionDays.value = normalizedLogRetentionDays;
+    alertRetentionDays.value = normalizedAlertRetentionDays;
+    initialLogRetentionDays.value = normalizedLogRetentionDays;
+    initialAlertRetentionDays.value = normalizedAlertRetentionDays;
     retentionMessage.value = "Retention settings auto-saved.";
     retentionSuccess.value = true;
   } catch {
@@ -1167,7 +1348,7 @@ const saveRetentionSettings = async () => {
     retentionSuccess.value = false;
   } finally {
     retentionSaving.value = false;
-    if (retentionPendingSave.value) {
+    if (retentionPendingSave.value && retentionDirty.value) {
       scheduleRetentionAutoSave();
     }
   }
@@ -1195,6 +1376,7 @@ const flushRetentionAutoSave = () => {
 
 watch([logRetentionDays, alertRetentionDays], () => {
   if (retentionLoading.value) return;
+  if (!retentionDirty.value) return;
   retentionPendingSave.value = true;
   scheduleRetentionAutoSave();
 });

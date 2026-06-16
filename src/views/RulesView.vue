@@ -226,25 +226,6 @@ const groupedPatterns = computed(() => {
   return groups;
 });
 
-const alertPatternCount = computed(() =>
-  patterns.value.filter(
-    (p) => (p.effective_classification || p.classification) === "critical" ||
-           (p.effective_classification || p.classification) === "high"
-  ).length
-);
-
-const riskClass = computed(() => {
-  if (alertPatternCount.value === 0) return "risk-safe";
-  if (alertPatternCount.value <= 3) return "risk-warning";
-  return "risk-danger";
-});
-
-const riskLabel = computed(() => {
-  if (alertPatternCount.value === 0) return "SAFE";
-  if (alertPatternCount.value <= 3) return "CAUTION";
-  return "AT RISK";
-});
-
 const classIcon = (p: PatternItem) => p.effective_classification || p.classification || "pending";
 
 const patternLabel = (p: PatternItem) => {

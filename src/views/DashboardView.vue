@@ -173,12 +173,6 @@ const formatDateTime = (ts: string) => {
   } catch { return ts; }
 };
 
-const formatBytes = (bytes: number) => {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-};
-
 const filterRecentCriticalAlerts = (all: AlertItem[]) => {
   const cutoff = Date.now() - 12 * 60 * 60 * 1000;
   return all

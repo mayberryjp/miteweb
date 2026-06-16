@@ -239,9 +239,7 @@ import { ref, computed, onMounted, watch, inject, type Ref } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import { updatePattern, getPatternTimeSeries, getPatternLogs, deletePattern } from "@/services/rules";
 import type { PatternItem, HourlyStat, LogItem } from "@/types";
-import SeverityBadge from "@/components/SeverityBadge.vue";
 import StatsChart from "@/components/StatsChart.vue";
-import AlertBarChart from "@/components/AlertBarChart.vue";
 import PatternStats from "@/components/PatternStats.vue";
 
 const route = useRoute();
@@ -249,7 +247,6 @@ const router = useRouter();
 
 const patternId = computed(() => Number(route.params.id));
 const patterns = inject<Ref<PatternItem[]>>("patterns", ref([]));
-const patternStats = inject<Ref<Record<string, { hour: string; count: number }[]>>>("patternStats", ref({}));
 const refreshPatterns = inject<() => Promise<void>>("refreshPatterns", async () => {});
 const error = ref("");
 const loading = ref(true);
@@ -260,7 +257,6 @@ const savingRegex = ref(false);
 const copyLabel = ref("Copy");
 const snackbar = ref(false);
 const regexExpanded = ref(false);
-const aiExpanded = ref(false);
 const editingTitle = ref(false);
 const titleDraft = ref("");
 const savingTitle = ref(false);
@@ -318,11 +314,6 @@ const classIconName = (p: PatternItem): string => {
   if (cls === "low") return "mdi-information";
   if (cls === "noise") return "mdi-volume-off";
   return "mdi-clock-outline";
-};
-
-const getDetailAlertIntervals = (id: number) => {
-  const intervals = patternStats.value[String(id)] || [];
-  return intervals.map((i: { count: number }) => i.count);
 };
 
 const loadPatternData = async (id: number) => {
@@ -473,10 +464,6 @@ const handleDeletePattern = async () => {
   } finally {
     deletingPattern.value = false;
   }
-};
-
-const formatTime = (ts: string) => {
-  try { return new Date(ts).toLocaleString(); } catch { return ts; }
 };
 
 const formatDateTime = (ts: string) => {
