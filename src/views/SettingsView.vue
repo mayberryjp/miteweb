@@ -14,7 +14,7 @@
           <v-tab value="processing">PROCESSING</v-tab>
           <v-tab value="network-tuning">NETWORK TUNING</v-tab>
           <v-tab value="retention">RETENTION</v-tab>
-          <v-tab value="health">BACKEND HEALTH</v-tab>
+          <v-tab value="health">HEALTH</v-tab>
           <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
           <v-tab value="notifications">NOTIFICATIONS</v-tab>
@@ -651,7 +651,7 @@
             </v-window-item>
 
             <v-window-item value="health">
-              <h3>Backend Health</h3>
+              <h3>Health</h3>
               <v-divider class="my-4"></v-divider>
 
               <v-table density="compact" class="rounded-lg" style="background-color: #0d1117;">
@@ -665,8 +665,12 @@
                     <td class="font-weight-medium">{{ formatUptime(health.uptime) }}</td>
                   </tr>
                   <tr v-if="health?.version">
-                    <td class="text-medium-emphasis">Version</td>
+                    <td class="text-medium-emphasis">Backend Version</td>
                     <td class="font-weight-medium">{{ health.version }}</td>
+                  </tr>
+                  <tr>
+                    <td class="text-medium-emphasis">Frontend Version</td>
+                    <td class="font-weight-medium">{{ appVersion }}</td>
                   </tr>
                   <tr>
                     <td class="text-medium-emphasis">API Base URL</td>
@@ -806,6 +810,7 @@ import PatternHitCountMonitor from "@/components/PatternHitCountMonitor.vue";
 const { lgAndUp } = useDisplay();
 
 const activeTab = ref("general");
+const appVersion = __APP_VERSION__;
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
 const error = ref("");
