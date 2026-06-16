@@ -11,6 +11,9 @@
           color="primary"
         >
           <v-tab value="general">GENERAL</v-tab>
+          <v-tab value="processing">PROCESSING</v-tab>
+          <v-tab value="network-tuning">NETWORK TUNING</v-tab>
+          <v-tab value="retention">RETENTION</v-tab>
           <v-tab value="health">BACKEND HEALTH</v-tab>
           <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
@@ -102,6 +105,395 @@
                 @click:close="actionMessage = ''"
               >
                 {{ actionMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="processing">
+              <h3>Processing Settings</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-table class="settings-form-table" density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left" colspan="2">Setting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">AI Discovery Interval (seconds)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="aiDiscoveryIntervalSeconds"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Controls how often the AI worker wakes up to process pending pattern classifications. Lower values make classification more responsive; higher values reduce API usage and background load.</div>
+                        <div class="setting-default">Default: <span>3600</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">AI Batch Size</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="aiBatchSize"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Sets how many pending patterns the AI worker sends for classification in one cycle. Larger batches drain backlog faster but consume rate limit capacity more quickly.</div>
+                        <div class="setting-default">Default: <span>20</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Processor Interval (seconds)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="processorIntervalSeconds"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Defines how often the log processor loop runs. Lower values reduce processing latency, while higher values reduce CPU/database churn.</div>
+                        <div class="setting-default">Default: <span>10</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Processor Fetch Limit</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="processorFetchLimit"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Limits how many unprocessed logs are pulled per processor cycle. Higher values improve catch-up speed during backlog, but each cycle may take longer.</div>
+                        <div class="setting-default">Default: <span>100</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Retention Check Interval (seconds)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="retentionCheckIntervalSeconds"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Controls how often retention cleanup runs for old logs/alerts. Lower values clean up more aggressively; higher values reduce cleanup frequency and load.</div>
+                        <div class="setting-default">Default: <span>3600</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Regex Cache TTL (seconds)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="regexCacheTtlSeconds"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">How long compiled regex pattern cache is kept in the processor before refreshing from the database. Lower values pick up regex updates faster; higher values reduce DB lookups.</div>
+                        <div class="setting-default">Default: <span>60</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <v-alert
+                v-if="processingMessage"
+                :type="processingSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="processingMessage = ''"
+              >
+                {{ processingMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="network-tuning">
+              <h3>Network Tuning</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-table class="settings-form-table" density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left" colspan="2">Setting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">UDP Batch Size</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="udpBatchSize"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushNetworkTuningAutoSave"
+                          :disabled="networkTuningLoading || networkTuningSaving"
+                          hide-details
+                          class="network-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Number of UDP-ingested log records buffered before writing a batch to the database. Higher values improve write efficiency under load but can increase memory use and flush latency.</div>
+                        <div class="setting-default">Default: <span>500</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">UDP Batch Flush Interval (seconds)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="udpBatchFlushIntervalSeconds"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          step="0.1"
+                          @blur="flushNetworkTuningAutoSave"
+                          :disabled="networkTuningLoading || networkTuningSaving"
+                          hide-details
+                          class="network-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Maximum time UDP logs wait in memory before being flushed, even if batch size is not reached. Lower values improve freshness; higher values improve batching efficiency.</div>
+                        <div class="setting-default">Default: <span>1.0</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">UDP Receive Buffer (bytes)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="udpRecvBufferBytes"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushNetworkTuningAutoSave"
+                          :disabled="networkTuningLoading || networkTuningSaving"
+                          hide-details
+                          class="network-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Requested OS socket receive buffer size for the UDP listener. Increasing this helps absorb bursts and reduce packet drops on busy networks.</div>
+                        <div class="setting-default">Default: <span>4194304</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">TCP Batch Size</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="tcpBatchSize"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushNetworkTuningAutoSave"
+                          :disabled="networkTuningLoading || networkTuningSaving"
+                          hide-details
+                          class="network-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Number of TCP-ingested log records buffered per connection before database flush. Larger values can improve throughput but may delay writes for low-volume senders.</div>
+                        <div class="setting-default">Default: <span>500</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">TCP Batch Flush Interval (seconds)</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="tcpBatchFlushIntervalSeconds"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          step="0.1"
+                          @blur="flushNetworkTuningAutoSave"
+                          :disabled="networkTuningLoading || networkTuningSaving"
+                          hide-details
+                          class="network-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Maximum time buffered TCP logs wait before being flushed when batch size is not reached. Lower values reduce end-to-end delay; higher values favor larger batched writes.</div>
+                        <div class="setting-default">Default: <span>1.0</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <v-alert
+                v-if="networkTuningMessage"
+                :type="networkTuningSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="networkTuningMessage = ''"
+              >
+                {{ networkTuningMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="retention">
+              <h3>Retention Settings</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-table class="settings-form-table" density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left" colspan="2">Setting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Log Retention Days</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="logRetentionDays"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushRetentionAutoSave"
+                          :disabled="retentionLoading || retentionSaving"
+                          hide-details
+                          class="retention-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Number of days to keep processed log records before automatic cleanup deletes older entries. Increase it for longer forensic history; decrease it to reduce database size growth.</div>
+                        <div class="setting-default">Default: <span>14</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Alert Retention Days</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="alertRetentionDays"
+                          variant="outlined"
+                          density="compact"
+                          type="number"
+                          @blur="flushRetentionAutoSave"
+                          :disabled="retentionLoading || retentionSaving"
+                          hide-details
+                          class="retention-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Number of days to keep alert records before retention cleanup removes older alerts. Higher values preserve incident history longer, while lower values keep the alerts table smaller and faster.</div>
+                        <div class="setting-default">Default: <span>30</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <v-alert
+                v-if="retentionMessage"
+                :type="retentionSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="retentionMessage = ''"
+              >
+                {{ retentionMessage }}
               </v-alert>
             </v-window-item>
 
@@ -531,6 +923,277 @@ watch([discordNotificationsEnabled, discordWebhookUrl], () => {
   scheduleNotificationsAutoSave();
 });
 
+// Processing tab state
+const processingLoading = ref(false);
+const processingSaving = ref(false);
+const processingMessage = ref("");
+const processingSuccess = ref(false);
+const aiDiscoveryIntervalSeconds = ref("");
+const aiBatchSize = ref("");
+const processorIntervalSeconds = ref("");
+const processorFetchLimit = ref("");
+const retentionCheckIntervalSeconds = ref("");
+const regexCacheTtlSeconds = ref("");
+const processingPendingSave = ref(false);
+let processingAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const fetchProcessingSettings = async () => {
+  processingLoading.value = true;
+  processingMessage.value = "";
+  try {
+    const results = await Promise.allSettled([
+      getSetting("ai_discovery_interval_seconds"),
+      getSetting("ai_batch_size"),
+      getSetting("processor_interval_seconds"),
+      getSetting("processor_fetch_limit"),
+      getSetting("retention_check_interval_seconds"),
+      getSetting("regex_cache_ttl_seconds"),
+    ]);
+
+    aiDiscoveryIntervalSeconds.value = results[0].status === "fulfilled" ? results[0].value || "" : "";
+    aiBatchSize.value = results[1].status === "fulfilled" ? results[1].value || "" : "";
+    processorIntervalSeconds.value = results[2].status === "fulfilled" ? results[2].value || "" : "";
+    processorFetchLimit.value = results[3].status === "fulfilled" ? results[3].value || "" : "";
+    retentionCheckIntervalSeconds.value = results[4].status === "fulfilled" ? results[4].value || "" : "";
+    regexCacheTtlSeconds.value = results[5].status === "fulfilled" ? results[5].value || "" : "";
+  } catch {
+    processingMessage.value = "Failed to load processing settings.";
+    processingSuccess.value = false;
+  } finally {
+    processingLoading.value = false;
+  }
+};
+
+const saveProcessingSettings = async () => {
+  if (processingSaving.value) {
+    processingPendingSave.value = true;
+    return;
+  }
+
+  processingSaving.value = true;
+  processingMessage.value = "";
+  try {
+    await Promise.all([
+      updateSetting("ai_discovery_interval_seconds", aiDiscoveryIntervalSeconds.value.trim()),
+      updateSetting("ai_batch_size", aiBatchSize.value.trim()),
+      updateSetting("processor_interval_seconds", processorIntervalSeconds.value.trim()),
+      updateSetting("processor_fetch_limit", processorFetchLimit.value.trim()),
+      updateSetting("retention_check_interval_seconds", retentionCheckIntervalSeconds.value.trim()),
+      updateSetting("regex_cache_ttl_seconds", regexCacheTtlSeconds.value.trim()),
+    ]);
+    processingMessage.value = "Processing settings auto-saved.";
+    processingSuccess.value = true;
+  } catch {
+    processingMessage.value = "Failed to save processing settings.";
+    processingSuccess.value = false;
+  } finally {
+    processingSaving.value = false;
+    if (processingPendingSave.value) {
+      scheduleProcessingAutoSave();
+    }
+  }
+};
+
+const scheduleProcessingAutoSave = () => {
+  if (processingAutoSaveTimer) clearTimeout(processingAutoSaveTimer);
+  processingAutoSaveTimer = setTimeout(() => {
+    processingAutoSaveTimer = null;
+    if (!processingPendingSave.value) return;
+    processingPendingSave.value = false;
+    void saveProcessingSettings();
+  }, 600);
+};
+
+const flushProcessingAutoSave = () => {
+  if (!processingPendingSave.value) return;
+  if (processingAutoSaveTimer) {
+    clearTimeout(processingAutoSaveTimer);
+    processingAutoSaveTimer = null;
+  }
+  processingPendingSave.value = false;
+  void saveProcessingSettings();
+};
+
+watch([aiDiscoveryIntervalSeconds, aiBatchSize, processorIntervalSeconds, processorFetchLimit, retentionCheckIntervalSeconds, regexCacheTtlSeconds], () => {
+  if (processingLoading.value) return;
+  processingPendingSave.value = true;
+  scheduleProcessingAutoSave();
+});
+
+// Network Tuning tab state
+const networkTuningLoading = ref(false);
+const networkTuningSaving = ref(false);
+const networkTuningMessage = ref("");
+const networkTuningSuccess = ref(false);
+const udpBatchSize = ref("");
+const udpBatchFlushIntervalSeconds = ref("");
+const udpRecvBufferBytes = ref("");
+const tcpBatchSize = ref("");
+const tcpBatchFlushIntervalSeconds = ref("");
+const networkTuningPendingSave = ref(false);
+let networkTuningAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const fetchNetworkTuningSettings = async () => {
+  networkTuningLoading.value = true;
+  networkTuningMessage.value = "";
+  try {
+    const results = await Promise.allSettled([
+      getSetting("udp_batch_size"),
+      getSetting("udp_batch_flush_interval_seconds"),
+      getSetting("udp_recv_buffer_bytes"),
+      getSetting("tcp_batch_size"),
+      getSetting("tcp_batch_flush_interval_seconds"),
+    ]);
+
+    udpBatchSize.value = results[0].status === "fulfilled" ? results[0].value || "" : "";
+    udpBatchFlushIntervalSeconds.value = results[1].status === "fulfilled" ? results[1].value || "" : "";
+    udpRecvBufferBytes.value = results[2].status === "fulfilled" ? results[2].value || "" : "";
+    tcpBatchSize.value = results[3].status === "fulfilled" ? results[3].value || "" : "";
+    tcpBatchFlushIntervalSeconds.value = results[4].status === "fulfilled" ? results[4].value || "" : "";
+  } catch {
+    networkTuningMessage.value = "Failed to load network tuning settings.";
+    networkTuningSuccess.value = false;
+  } finally {
+    networkTuningLoading.value = false;
+  }
+};
+
+const saveNetworkTuningSettings = async () => {
+  if (networkTuningSaving.value) {
+    networkTuningPendingSave.value = true;
+    return;
+  }
+
+  networkTuningSaving.value = true;
+  networkTuningMessage.value = "";
+  try {
+    await Promise.all([
+      updateSetting("udp_batch_size", udpBatchSize.value.trim()),
+      updateSetting("udp_batch_flush_interval_seconds", udpBatchFlushIntervalSeconds.value.trim()),
+      updateSetting("udp_recv_buffer_bytes", udpRecvBufferBytes.value.trim()),
+      updateSetting("tcp_batch_size", tcpBatchSize.value.trim()),
+      updateSetting("tcp_batch_flush_interval_seconds", tcpBatchFlushIntervalSeconds.value.trim()),
+    ]);
+    networkTuningMessage.value = "Network tuning settings auto-saved.";
+    networkTuningSuccess.value = true;
+  } catch {
+    networkTuningMessage.value = "Failed to save network tuning settings.";
+    networkTuningSuccess.value = false;
+  } finally {
+    networkTuningSaving.value = false;
+    if (networkTuningPendingSave.value) {
+      scheduleNetworkTuningAutoSave();
+    }
+  }
+};
+
+const scheduleNetworkTuningAutoSave = () => {
+  if (networkTuningAutoSaveTimer) clearTimeout(networkTuningAutoSaveTimer);
+  networkTuningAutoSaveTimer = setTimeout(() => {
+    networkTuningAutoSaveTimer = null;
+    if (!networkTuningPendingSave.value) return;
+    networkTuningPendingSave.value = false;
+    void saveNetworkTuningSettings();
+  }, 600);
+};
+
+const flushNetworkTuningAutoSave = () => {
+  if (!networkTuningPendingSave.value) return;
+  if (networkTuningAutoSaveTimer) {
+    clearTimeout(networkTuningAutoSaveTimer);
+    networkTuningAutoSaveTimer = null;
+  }
+  networkTuningPendingSave.value = false;
+  void saveNetworkTuningSettings();
+};
+
+watch([udpBatchSize, udpBatchFlushIntervalSeconds, udpRecvBufferBytes, tcpBatchSize, tcpBatchFlushIntervalSeconds], () => {
+  if (networkTuningLoading.value) return;
+  networkTuningPendingSave.value = true;
+  scheduleNetworkTuningAutoSave();
+});
+
+// Retention tab state
+const retentionLoading = ref(false);
+const retentionSaving = ref(false);
+const retentionMessage = ref("");
+const retentionSuccess = ref(false);
+const logRetentionDays = ref("");
+const alertRetentionDays = ref("");
+const retentionPendingSave = ref(false);
+let retentionAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const fetchRetentionSettings = async () => {
+  retentionLoading.value = true;
+  retentionMessage.value = "";
+  try {
+    const results = await Promise.allSettled([
+      getSetting("log_retention_days"),
+      getSetting("alert_retention_days"),
+    ]);
+
+    logRetentionDays.value = results[0].status === "fulfilled" ? results[0].value || "" : "";
+    alertRetentionDays.value = results[1].status === "fulfilled" ? results[1].value || "" : "";
+  } catch {
+    retentionMessage.value = "Failed to load retention settings.";
+    retentionSuccess.value = false;
+  } finally {
+    retentionLoading.value = false;
+  }
+};
+
+const saveRetentionSettings = async () => {
+  if (retentionSaving.value) {
+    retentionPendingSave.value = true;
+    return;
+  }
+
+  retentionSaving.value = true;
+  retentionMessage.value = "";
+  try {
+    await Promise.all([
+      updateSetting("log_retention_days", logRetentionDays.value.trim()),
+      updateSetting("alert_retention_days", alertRetentionDays.value.trim()),
+    ]);
+    retentionMessage.value = "Retention settings auto-saved.";
+    retentionSuccess.value = true;
+  } catch {
+    retentionMessage.value = "Failed to save retention settings.";
+    retentionSuccess.value = false;
+  } finally {
+    retentionSaving.value = false;
+    if (retentionPendingSave.value) {
+      scheduleRetentionAutoSave();
+    }
+  }
+};
+
+const scheduleRetentionAutoSave = () => {
+  if (retentionAutoSaveTimer) clearTimeout(retentionAutoSaveTimer);
+  retentionAutoSaveTimer = setTimeout(() => {
+    retentionAutoSaveTimer = null;
+    if (!retentionPendingSave.value) return;
+    retentionPendingSave.value = false;
+    void saveRetentionSettings();
+  }, 600);
+};
+
+const flushRetentionAutoSave = () => {
+  if (!retentionPendingSave.value) return;
+  if (retentionAutoSaveTimer) {
+    clearTimeout(retentionAutoSaveTimer);
+    retentionAutoSaveTimer = null;
+  }
+  retentionPendingSave.value = false;
+  void saveRetentionSettings();
+};
+
+watch([logRetentionDays, alertRetentionDays], () => {
+  if (retentionLoading.value) return;
+  retentionPendingSave.value = true;
+  scheduleRetentionAutoSave();
+});
+
 // Prompt tab state
 const promptTemplate = ref("");
 const promptLoading = ref(false);
@@ -683,10 +1346,16 @@ onMounted(() => {
   fetchData();
   fetchPrompt();
   fetchNotificationsSettings();
+  fetchProcessingSettings();
+  fetchNetworkTuningSettings();
+  fetchRetentionSettings();
 });
 
 onUnmounted(() => {
   if (notificationsAutoSaveTimer) clearTimeout(notificationsAutoSaveTimer);
+  if (processingAutoSaveTimer) clearTimeout(processingAutoSaveTimer);
+  if (networkTuningAutoSaveTimer) clearTimeout(networkTuningAutoSaveTimer);
+  if (retentionAutoSaveTimer) clearTimeout(retentionAutoSaveTimer);
 });
 </script>
 

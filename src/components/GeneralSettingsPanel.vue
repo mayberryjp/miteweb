@@ -32,10 +32,10 @@
             </div>
             <div class="setting-meta">
               <div class="setting-details">
-                Messages shorter than this value will be filtered out by the backend.
+                Messages shorter than this value will be filtered out by the backend. Logs under this value are difficult to classify because there's not enough detail.
               </div>
-              <div class="setting-default">Default: <span>0</span></div>
-              <div class="setting-suggested">Suggested: <span>Use 0 unless you need to suppress very short messages.</span></div>
+              <div class="setting-default">Default: <span>50</span></div>
+              <div class="setting-suggested">Suggested: <span>50</span></div>
             </div>
           </td>
         </tr>
@@ -63,7 +63,7 @@
               <div class="setting-details">
                 Maximum number of AI API requests allowed in a 24-hour window. Used to control AI costs.
               </div>
-              <div class="setting-default">Minimum: <span>1</span></div>
+              <div class="setting-default">Default: <span>500</span></div>
               <div class="setting-suggested">Suggested: <span>Set based on your expected daily analysis volume and cost target.</span></div>
             </div>
           </td>
