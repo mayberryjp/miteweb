@@ -54,3 +54,8 @@ export const deleteAllPatterns = async () => {
   const response = await api.delete<{ status: string; deleted: number }>("/patterns");
   return response.data;
 };
+
+export const moveAllLowToNoise = async () => {
+  const response = await api.post<{ status: string; updated: number; from: string; to: string }>("/patterns/actions/low-to-noise");
+  return response.data;
+};

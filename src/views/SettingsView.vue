@@ -15,7 +15,8 @@
           <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
           <v-tab value="notifications">NOTIFICATIONS</v-tab>
-          <v-tab value="actions">DANGER ACTIONS</v-tab>
+          <v-tab value="bulk-operations">BULK OPERATIONS</v-tab>
+          <v-tab value="actions">DANGEROUS ACTIONS</v-tab>
         </v-tabs>
       </v-col>
 
@@ -30,7 +31,7 @@
             </v-window-item>
 
             <v-window-item value="actions">
-              <h3>Danger Actions</h3>
+              <h3>Dangerous Actions</h3>
               <v-divider class="my-4"></v-divider>
 
               <div class="maintenance-actions">
@@ -102,6 +103,12 @@
               >
                 {{ actionMessage }}
               </v-alert>
+            </v-window-item>
+
+            <v-window-item value="bulk-operations">
+              <h3>Bulk Operations</h3>
+              <v-divider class="my-4"></v-divider>
+              <BulkOperationsPanel />
             </v-window-item>
 
             <v-window-item value="notifications">
@@ -401,6 +408,7 @@ import { deleteAllPatterns } from "@/services/rules";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
 import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
+import BulkOperationsPanel from "@/components/BulkOperationsPanel.vue";
 import PatternHitCountMonitor from "@/components/PatternHitCountMonitor.vue";
 
 const { lgAndUp } = useDisplay();

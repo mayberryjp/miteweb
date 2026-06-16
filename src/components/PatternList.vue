@@ -54,6 +54,7 @@
           >
             <div class="d-flex align-center w-100">
               <div class="icon-container">
+                <span v-if="isNewPattern(p)" class="new-pattern-badge">NEW</span>
                 <v-icon :color="classColor(p)" size="24">{{ classIconName(p) }}</v-icon>
               </div>
               <div class="host-info">{{ patternLabel(p) }}</div>
@@ -198,6 +199,14 @@ const get12hCount = (patternId: number) => {
 const formatCount = (n: number): string => {
   return n.toLocaleString();
 };
+
+const isNewPattern = (p: PatternItem): boolean => {
+  if (!p.first_seen_at) return false;
+  const firstSeenTs = Date.parse(p.first_seen_at);
+  if (Number.isNaN(firstSeenTs)) return false;
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  return Date.now() - firstSeenTs <= oneDayMs;
+};
 </script>
 
 <style scoped>
@@ -215,6 +224,11 @@ const formatCount = (n: number): string => {
   color: #b1b8c0;
   text-transform: uppercase;
   transition: background-color 0.2s ease;
+  overflow: visible;
+}
+
+.pattern-list-item :deep(.v-list-item__content) {
+  overflow: visible;
 }
 
 .pattern-list-item.selected-pattern {
@@ -232,11 +246,30 @@ const formatCount = (n: number): string => {
 }
 
 .icon-container {
+  position: relative;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   min-width: 40px;
+}
+
+.new-pattern-badge {
+  position: absolute;
+  top: -6px;
+  left: -8px;
+  z-index: 2;
+  font-size: 9px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  padding: 2px 5px;
+  border-radius: 999px;
+  color: #0d1117;
+  background: #f6c945;
+  border: 1px solid rgba(13, 17, 23, 0.55);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
 .search-container {

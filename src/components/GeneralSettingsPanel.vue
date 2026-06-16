@@ -1,7 +1,7 @@
 <template>
   <div>
     <p class="text-body-2 text-medium-emphasis mb-4">
-      General application settings. Edit the minimum message length used by the backend.
+      General application settings.
     </p>
 
     <v-table class="settings-form-table" density="compact">
@@ -39,6 +39,35 @@
             </div>
           </td>
         </tr>
+
+        <tr>
+          <td class="setting-name-cell">
+            <div class="font-weight-medium">AI API Daily Rate Limit</div>
+          </td>
+          <td class="align-top">
+            <div class="setting-row-flex">
+              <v-text-field
+                v-model="aiApiDailyRateLimit"
+                type="number"
+                min="1"
+                variant="outlined"
+                density="compact"
+                :loading="loading || saving"
+                :disabled="loading || saving"
+                hide-details
+                class="general-setting-input"
+                @blur="flushAutoSave"
+              />
+            </div>
+            <div class="setting-meta">
+              <div class="setting-details">
+                Maximum number of AI API requests allowed in a 24-hour window. Used to control AI costs.
+              </div>
+              <div class="setting-default">Minimum: <span>1</span></div>
+              <div class="setting-suggested">Suggested: <span>Set based on your expected daily analysis volume and cost target.</span></div>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </v-table>
 
@@ -57,11 +86,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { getSetting, updateSetting } from "@/services/system";
+import { getSetting, getSettings, updateSetting } from "@/services/system";
 
-const settingKey = "min_message_length";
+const minMessageLengthSettingKey = "min_message_length";
+const aiApiDailyRateLimitSettingKey = "ai_api_daily_rate_limit";
 const minMessageLength = ref("0");
-const initialValue = ref("0");
+const aiApiDailyRateLimit = ref("1");
+const initialMinMessageLength = ref("0");
+const initialAiApiDailyRateLimit = ref("1");
 const loading = ref(false);
 const saving = ref(false);
 const message = ref("");
@@ -69,20 +101,42 @@ const success = ref(false);
 const pendingAutoSave = ref(false);
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
-const isDirty = computed(() => minMessageLength.value !== initialValue.value);
+const isDirty = computed(
+  () =>
+    minMessageLength.value !== initialMinMessageLength.value
+    || aiApiDailyRateLimit.value !== initialAiApiDailyRateLimit.value,
+);
 
-const normalizeValue = (value: string) =>
+const normalizeMinMessageLength = (value: string) =>
   String(Math.max(0, Number.parseInt(value || "0", 10) || 0));
+
+const normalizeAiApiDailyRateLimit = (value: string) =>
+  String(Math.max(1, Number.parseInt(value || "1", 10) || 1));
 
 const fetchSetting = async () => {
   loading.value = true;
   message.value = "";
   try {
-    const value = await getSetting(settingKey);
-    minMessageLength.value = value ?? "0";
-    initialValue.value = minMessageLength.value;
+    await getSettings();
+
+    const [minMessageLengthResult, aiApiDailyRateLimitResult] = await Promise.allSettled([
+      getSetting(minMessageLengthSettingKey),
+      getSetting(aiApiDailyRateLimitSettingKey),
+    ]);
+
+    const loadedMinMessageLength = minMessageLengthResult.status === "fulfilled"
+      ? normalizeMinMessageLength(minMessageLengthResult.value)
+      : "0";
+    const loadedAiApiDailyRateLimit = aiApiDailyRateLimitResult.status === "fulfilled"
+      ? normalizeAiApiDailyRateLimit(aiApiDailyRateLimitResult.value)
+      : "1";
+
+    minMessageLength.value = loadedMinMessageLength;
+    aiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
+    initialMinMessageLength.value = loadedMinMessageLength;
+    initialAiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
   } catch {
-    message.value = "Failed to load min_message_length.";
+    message.value = "Failed to load general settings.";
     success.value = false;
   } finally {
     loading.value = false;
@@ -99,14 +153,30 @@ const saveSetting = async () => {
   saving.value = true;
   message.value = "";
   try {
-    const normalized = normalizeValue(minMessageLength.value);
-    await updateSetting(settingKey, normalized);
-    minMessageLength.value = normalized;
-    initialValue.value = normalized;
-    message.value = "min_message_length auto-saved.";
+    const normalizedMinMessageLength = normalizeMinMessageLength(minMessageLength.value);
+    const normalizedAiApiDailyRateLimit = normalizeAiApiDailyRateLimit(aiApiDailyRateLimit.value);
+    const aiApiDailyRateLimitInteger = Number.parseInt(normalizedAiApiDailyRateLimit, 10);
+
+    const updates: Promise<void>[] = [];
+    if (normalizedMinMessageLength !== initialMinMessageLength.value) {
+      updates.push(updateSetting(minMessageLengthSettingKey, normalizedMinMessageLength));
+    }
+    if (normalizedAiApiDailyRateLimit !== initialAiApiDailyRateLimit.value) {
+      updates.push(updateSetting(aiApiDailyRateLimitSettingKey, aiApiDailyRateLimitInteger));
+    }
+
+    if (updates.length === 0) return;
+
+    await Promise.all(updates);
+
+    minMessageLength.value = normalizedMinMessageLength;
+    aiApiDailyRateLimit.value = normalizedAiApiDailyRateLimit;
+    initialMinMessageLength.value = normalizedMinMessageLength;
+    initialAiApiDailyRateLimit.value = normalizedAiApiDailyRateLimit;
+    message.value = "General settings auto-saved.";
     success.value = true;
   } catch {
-    message.value = "Failed to save min_message_length.";
+    message.value = "Failed to save general settings.";
     success.value = false;
   } finally {
     saving.value = false;
@@ -137,6 +207,13 @@ const flushAutoSave = () => {
 };
 
 watch(minMessageLength, () => {
+  if (loading.value) return;
+  if (!isDirty.value) return;
+  pendingAutoSave.value = true;
+  scheduleAutoSave();
+});
+
+watch(aiApiDailyRateLimit, () => {
   if (loading.value) return;
   if (!isDirty.value) return;
   pendingAutoSave.value = true;
