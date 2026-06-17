@@ -176,8 +176,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { getSetting, getSettingValue, getSettings, updateSetting } from "@/services/system";
+import { computed, onUnmounted, ref, watch } from "vue";
+import { updateSetting } from "@/services/system";
+import type { EditableSetting } from "@/services/system";
+
+const props = defineProps<{
+  settings: EditableSetting[];
+  settingsReady: boolean;
+}>();
 
 const minMessageLengthSettingKey = "min_message_length";
 const aiApiDailyRateLimitSettingKey = "ai_api_daily_rate_limit";
@@ -197,7 +203,7 @@ const initialMinMessageLength = ref("0");
 const initialAiApiDailyRateLimit = ref("1");
 const initialAiSamplePreprocessingRegex = ref("");
 const initialAiSamplePreprocessingStringsSerialized = ref("");
-const loading = ref(false);
+const loading = ref(true);
 const saving = ref(false);
 const message = ref("");
 const success = ref(false);
@@ -208,6 +214,14 @@ const serializeReplacementRules = (values: ReplacementRule[]) =>
   values.map((item) => [item.source, item.replacement] as [string, string]);
 
 const deserializeReplacementRules = (value: unknown) => {
+  if (typeof value === "string") {
+    try {
+      return deserializeReplacementRules(JSON.parse(value) as unknown);
+    } catch {
+      return [] as ReplacementRule[];
+    }
+  }
+
   if (!Array.isArray(value)) return [] as ReplacementRule[];
 
   return value
@@ -217,6 +231,17 @@ const deserializeReplacementRules = (value: unknown) => {
       replacement: String(replacement ?? "").trim(),
     }))
     .filter((item) => item.source.length > 0 && item.replacement.length > 0);
+};
+
+const getSettingValue = (key: string, fallback = "") => {
+  const setting = props.settings.find((entry) => entry.key === key);
+  const value = setting?.value ?? setting?.default ?? fallback;
+  return typeof value === "string" ? value : String(value ?? fallback);
+};
+
+const getStructuredSettingValue = (key: string) => {
+  const setting = props.settings.find((entry) => entry.key === key);
+  return setting?.value ?? setting?.default ?? [];
 };
 
 const aiSamplePreprocessingStringsPayload = computed(() =>
@@ -241,31 +266,15 @@ const normalizeMinMessageLength = (value: string) =>
 const normalizeAiApiDailyRateLimit = (value: string) =>
   String(Math.max(1, Number.parseInt(value || "1", 10) || 1));
 
-const fetchSetting = async () => {
+const applySettings = () => {
   loading.value = true;
   message.value = "";
+
   try {
-    await getSettings();
-
-    const [minMessageLengthResult, aiApiDailyRateLimitResult, aiSamplePreprocessingRegexResult, aiSamplePreprocessingStringsResult] = await Promise.allSettled([
-      getSetting(minMessageLengthSettingKey),
-      getSetting(aiApiDailyRateLimitSettingKey),
-      getSetting(aiSamplePreprocessingRegexSettingKey),
-      getSettingValue<Array<[string, string]>>(aiSamplePreprocessingStringsSettingKey),
-    ]);
-
-    const loadedMinMessageLength = minMessageLengthResult.status === "fulfilled"
-      ? normalizeMinMessageLength(minMessageLengthResult.value)
-      : "0";
-    const loadedAiApiDailyRateLimit = aiApiDailyRateLimitResult.status === "fulfilled"
-      ? normalizeAiApiDailyRateLimit(aiApiDailyRateLimitResult.value)
-      : "1";
-    const loadedAiSamplePreprocessingRegex = aiSamplePreprocessingRegexResult.status === "fulfilled"
-      ? aiSamplePreprocessingRegexResult.value
-      : "";
-    const loadedAiSampleReplacementRules = aiSamplePreprocessingStringsResult.status === "fulfilled"
-      ? deserializeReplacementRules(aiSamplePreprocessingStringsResult.value)
-      : [];
+    const loadedMinMessageLength = normalizeMinMessageLength(getSettingValue(minMessageLengthSettingKey, "0"));
+    const loadedAiApiDailyRateLimit = normalizeAiApiDailyRateLimit(getSettingValue(aiApiDailyRateLimitSettingKey, "1"));
+    const loadedAiSamplePreprocessingRegex = getSettingValue(aiSamplePreprocessingRegexSettingKey, "");
+    const loadedAiSampleReplacementRules = deserializeReplacementRules(getStructuredSettingValue(aiSamplePreprocessingStringsSettingKey));
     const loadedAiSamplePreprocessingStringsSerialized = JSON.stringify(serializeReplacementRules(loadedAiSampleReplacementRules));
 
     minMessageLength.value = loadedMinMessageLength;
@@ -409,7 +418,14 @@ onUnmounted(() => {
   if (autoSaveTimer) clearTimeout(autoSaveTimer);
 });
 
-onMounted(fetchSetting);
+watch(
+  () => props.settingsReady,
+  (ready) => {
+    if (!ready) return;
+    applySettings();
+  },
+  { immediate: true },
+);
 </script>
 
 <style scoped>

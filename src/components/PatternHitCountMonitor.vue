@@ -28,7 +28,7 @@
           <th style="width: 120px;">Current</th>
           <th style="width: 120px;">Delta</th>
           <th style="width: 180px;">Updated</th>
-          <th>Sample</th>
+          <th>Pattern Name</th>
         </tr>
       </thead>
       <tbody>
@@ -43,7 +43,7 @@
             </span>
           </td>
           <td>{{ formatDateTime(row.updatedAt) }}</td>
-          <td class="text-truncate sample-cell">{{ row.sample }}</td>
+          <td class="text-truncate sample-cell">{{ row.patternName }}</td>
         </tr>
       </tbody>
     </v-table>
@@ -66,7 +66,7 @@ type ChangedRow = {
   current: number;
   delta: number;
   updatedAt: string;
-  sample: string;
+  patternName: string;
 };
 
 const pollSeconds = 30;
@@ -115,7 +115,7 @@ const buildChangedRows = (patterns: PatternItem[]) => {
         current,
         delta: current - prev[id],
         updatedAt: new Date().toISOString(),
-        sample: pattern.sample_message || pattern.pattern_text || "",
+        patternName: (pattern.title || "").trim() || `Pattern #${id}`,
       });
     }
   }

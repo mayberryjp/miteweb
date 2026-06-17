@@ -1,6 +1,15 @@
 import api from "./api";
 import type { HealthStatus, StatsData } from "@/types";
 
+export interface EditableSetting {
+  key: string;
+  value: unknown;
+  default: unknown;
+  is_custom?: boolean;
+  description?: string;
+  type?: string;
+}
+
 export const getHealth = async () => {
   const response = await api.get<HealthStatus>("/health");
   return response.data;
@@ -16,8 +25,8 @@ export const testDiscord = async () => {
   return response.data;
 };
 
-export const getSettings = async (): Promise<Array<{ key: string; value: string; default: string }>> => {
-  const response = await api.get<Array<{ key: string; value: string; default: string }>>("/settings");
+export const getSettings = async (): Promise<EditableSetting[]> => {
+  const response = await api.get<EditableSetting[]>("/settings");
   return response.data;
 };
 

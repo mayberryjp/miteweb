@@ -30,7 +30,7 @@
             <v-window-item value="general">
               <h3>General Settings</h3>
               <v-divider class="my-4"></v-divider>
-              <GeneralSettingsPanel />
+              <GeneralSettingsPanel :settings="editableSettings" :settings-ready="editableSettingsReady" />
             </v-window-item>
 
             <v-window-item value="actions">
@@ -805,11 +805,12 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { useDisplay } from "vuetify";
-import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetting } from "@/services/system";
+import { getHealth, getStats, testDiscord, getSettings, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
 import { deleteAllPatterns, getPatterns } from "@/services/rules";
 import type { HealthStatus, StatsData } from "@/types";
+import type { EditableSetting } from "@/services/system";
 import StatusBadge from "@/components/StatusBadge.vue";
 import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
 import BulkOperationsPanel from "@/components/BulkOperationsPanel.vue";
@@ -822,6 +823,9 @@ const appVersion = __APP_VERSION__;
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
 const patternHitCountSum = ref<number | null>(null);
+const editableSettings = ref<EditableSetting[]>([]);
+const editableSettingsReady = ref(false);
+const editableSettingsByKey = computed(() => new Map(editableSettings.value.map((setting) => [setting.key, setting] as const)));
 const error = ref("");
 const refreshing = ref(false);
 const testingDiscord = ref(false);
@@ -861,6 +865,12 @@ const parseBoolSetting = (value: string) => {
 
 const normalizeSettingValue = (value: string) => value.trim();
 
+const getEditableSetting = (key: string, fallback = "") => {
+  const setting = editableSettingsByKey.value.get(key);
+  const rawValue = setting?.value ?? setting?.default ?? fallback;
+  return normalizeSettingValue(typeof rawValue === "string" ? rawValue : String(rawValue));
+};
+
 const notificationsDirty = computed(
   () =>
     discordNotificationsEnabled.value !== initialDiscordNotificationsEnabled.value
@@ -871,17 +881,8 @@ const fetchNotificationsSettings = async () => {
   notificationsLoading.value = true;
   notificationsMessage.value = "";
   try {
-    const [enabled, webhook] = await Promise.allSettled([
-      getSetting("discord_notifications_enabled"),
-      getSetting("discord_webhook_url"),
-    ]);
-
-    const loadedEnabled = enabled.status === "fulfilled"
-      ? parseBoolSetting(enabled.value)
-      : false;
-    const loadedWebhook = webhook.status === "fulfilled"
-      ? normalizeSettingValue(webhook.value || "")
-      : "";
+    const loadedEnabled = parseBoolSetting(getEditableSetting("discord_notifications_enabled", "false"));
+    const loadedWebhook = getEditableSetting("discord_webhook_url", "");
 
     discordNotificationsEnabled.value = loadedEnabled;
     discordWebhookUrl.value = loadedWebhook;
@@ -996,21 +997,12 @@ const fetchProcessingSettings = async () => {
   processingLoading.value = true;
   processingMessage.value = "";
   try {
-    const results = await Promise.allSettled([
-      getSetting("ai_discovery_interval_seconds"),
-      getSetting("ai_batch_size"),
-      getSetting("processor_interval_seconds"),
-      getSetting("processor_fetch_limit"),
-      getSetting("retention_check_interval_seconds"),
-      getSetting("regex_cache_ttl_seconds"),
-    ]);
-
-    const loadedAiDiscoveryIntervalSeconds = results[0].status === "fulfilled" ? normalizeSettingValue(results[0].value || "") : "";
-    const loadedAiBatchSize = results[1].status === "fulfilled" ? normalizeSettingValue(results[1].value || "") : "";
-    const loadedProcessorIntervalSeconds = results[2].status === "fulfilled" ? normalizeSettingValue(results[2].value || "") : "";
-    const loadedProcessorFetchLimit = results[3].status === "fulfilled" ? normalizeSettingValue(results[3].value || "") : "";
-    const loadedRetentionCheckIntervalSeconds = results[4].status === "fulfilled" ? normalizeSettingValue(results[4].value || "") : "";
-    const loadedRegexCacheTtlSeconds = results[5].status === "fulfilled" ? normalizeSettingValue(results[5].value || "") : "";
+    const loadedAiDiscoveryIntervalSeconds = getEditableSetting("ai_discovery_interval_seconds", "");
+    const loadedAiBatchSize = getEditableSetting("ai_batch_size", "");
+    const loadedProcessorIntervalSeconds = getEditableSetting("processor_interval_seconds", "");
+    const loadedProcessorFetchLimit = getEditableSetting("processor_fetch_limit", "");
+    const loadedRetentionCheckIntervalSeconds = getEditableSetting("retention_check_interval_seconds", "");
+    const loadedRegexCacheTtlSeconds = getEditableSetting("regex_cache_ttl_seconds", "");
 
     aiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
     aiBatchSize.value = loadedAiBatchSize;
@@ -1158,19 +1150,11 @@ const fetchNetworkTuningSettings = async () => {
   networkTuningLoading.value = true;
   networkTuningMessage.value = "";
   try {
-    const results = await Promise.allSettled([
-      getSetting("udp_batch_size"),
-      getSetting("udp_batch_flush_interval_seconds"),
-      getSetting("udp_recv_buffer_bytes"),
-      getSetting("tcp_batch_size"),
-      getSetting("tcp_batch_flush_interval_seconds"),
-    ]);
-
-    const loadedUdpBatchSize = results[0].status === "fulfilled" ? normalizeSettingValue(results[0].value || "") : "";
-    const loadedUdpBatchFlushIntervalSeconds = results[1].status === "fulfilled" ? normalizeSettingValue(results[1].value || "") : "";
-    const loadedUdpRecvBufferBytes = results[2].status === "fulfilled" ? normalizeSettingValue(results[2].value || "") : "";
-    const loadedTcpBatchSize = results[3].status === "fulfilled" ? normalizeSettingValue(results[3].value || "") : "";
-    const loadedTcpBatchFlushIntervalSeconds = results[4].status === "fulfilled" ? normalizeSettingValue(results[4].value || "") : "";
+    const loadedUdpBatchSize = getEditableSetting("udp_batch_size", "");
+    const loadedUdpBatchFlushIntervalSeconds = getEditableSetting("udp_batch_flush_interval_seconds", "");
+    const loadedUdpRecvBufferBytes = getEditableSetting("udp_recv_buffer_bytes", "");
+    const loadedTcpBatchSize = getEditableSetting("tcp_batch_size", "");
+    const loadedTcpBatchFlushIntervalSeconds = getEditableSetting("tcp_batch_flush_interval_seconds", "");
 
     udpBatchSize.value = loadedUdpBatchSize;
     udpBatchFlushIntervalSeconds.value = loadedUdpBatchFlushIntervalSeconds;
@@ -1301,13 +1285,8 @@ const fetchRetentionSettings = async () => {
   retentionLoading.value = true;
   retentionMessage.value = "";
   try {
-    const results = await Promise.allSettled([
-      getSetting("log_retention_days"),
-      getSetting("alert_retention_days"),
-    ]);
-
-    const loadedLogRetentionDays = results[0].status === "fulfilled" ? normalizeSettingValue(results[0].value || "") : "";
-    const loadedAlertRetentionDays = results[1].status === "fulfilled" ? normalizeSettingValue(results[1].value || "") : "";
+    const loadedLogRetentionDays = getEditableSetting("log_retention_days", "");
+    const loadedAlertRetentionDays = getEditableSetting("alert_retention_days", "");
 
     logRetentionDays.value = loadedLogRetentionDays;
     alertRetentionDays.value = loadedAlertRetentionDays;
@@ -1401,7 +1380,7 @@ const promptSuccess = ref(false);
 const fetchPrompt = async () => {
   promptLoading.value = true;
   try {
-    promptTemplate.value = await getSetting("ai_prompt_template");
+    promptTemplate.value = getEditableSetting("ai_prompt_template", "");
   } catch {
     promptMessage.value = "Failed to load prompt template.";
     promptSuccess.value = false;
@@ -1484,6 +1463,28 @@ const fetchData = async () => {
   }
 };
 
+const loadEditableSettings = async () => {
+  editableSettings.value = await getSettings();
+};
+
+const initializeSettingsPages = async () => {
+  try {
+    await loadEditableSettings();
+  } catch {
+    editableSettings.value = [];
+  } finally {
+    editableSettingsReady.value = true;
+  }
+
+  await Promise.allSettled([
+    fetchPrompt(),
+    fetchNotificationsSettings(),
+    fetchProcessingSettings(),
+    fetchNetworkTuningSettings(),
+    fetchRetentionSettings(),
+  ]);
+};
+
 const refreshHealth = async () => {
   refreshing.value = true;
   await fetchData();
@@ -1560,11 +1561,7 @@ let healthRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   fetchData();
-  fetchPrompt();
-  fetchNotificationsSettings();
-  fetchProcessingSettings();
-  fetchNetworkTuningSettings();
-  fetchRetentionSettings();
+  void initializeSettingsPages();
   healthRefreshTimer = setInterval(fetchData, 60_000);
 });
 
