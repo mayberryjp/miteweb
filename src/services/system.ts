@@ -21,12 +21,17 @@ export const getSettings = async (): Promise<Array<{ key: string; value: string;
   return response.data;
 };
 
-export const getSetting = async (key: string): Promise<string> => {
-  const response = await api.get<{ key: string; value: string | number; default: string | number }>(`/settings/${key}`);
-  return String(response.data.value ?? response.data.default);
+export const getSettingValue = async <T = unknown>(key: string): Promise<T> => {
+  const response = await api.get<{ key: string; value: T; default: T }>(`/settings/${key}`);
+  return (response.data.value ?? response.data.default) as T;
 };
 
-export const updateSetting = async (key: string, value: string | number): Promise<void> => {
+export const getSetting = async (key: string): Promise<string> => {
+  const value = await getSettingValue<string | number>(key);
+  return String(value);
+};
+
+export const updateSetting = async (key: string, value: unknown): Promise<void> => {
   await api.put(`/settings/${key}`, { value });
 };
 

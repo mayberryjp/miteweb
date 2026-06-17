@@ -68,6 +68,97 @@
             </div>
           </td>
         </tr>
+
+        <tr>
+          <td class="setting-name-cell">
+            <div class="font-weight-medium">Catch All Tokenization Regex</div>
+          </td>
+          <td class="align-top">
+            <div class="setting-row-flex">
+              <v-textarea
+                v-model="aiSamplePreprocessingRegex"
+                variant="outlined"
+                density="compact"
+                rows="2"
+                :loading="loading || saving"
+                :disabled="loading || saving"
+                hide-details
+                class="general-setting-input catch-all-tokenization-input"
+                @blur="flushAutoSave"
+              />
+            </div>
+            <div class="setting-meta">
+              <div class="setting-details">
+                Regular expression used to tokenize dynamic values in log messages before sending them to AI for analysis. Any text matching this regex is replaced with the token <code>DYNAMIC_VALUE</code>. This helps AI focus on structural patterns instead of specific values. Example: <code>[0-9]+|[0-9.]+\.[0-9.]+|[0-9a-fA-F]+</code> can tokenize numbers, IPs, and hex values. The original non-tokenized logs are still used for final regex generation and testing.
+              </div>
+              <div class="setting-default">Default: <span>[0-9]+|[0-9.]+\.[0-9.]+|[0-9a-fA-F]+</span></div>
+              <div class="setting-suggested">Suggested: <span>Include patterns for numbers, timestamps, IPs, MACs, hex values, and other dynamic fields relevant to your logs.</span></div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="setting-name-cell">
+            <div class="font-weight-medium">User Defined Tokenization</div>
+          </td>
+          <td class="align-top">
+            <div class="setting-row-flex setting-row-flex-wrap">
+              <v-text-field
+                v-model="aiSampleReplacementSourceDraft"
+                variant="outlined"
+                density="compact"
+                :loading="loading || saving"
+                :disabled="loading || saving"
+                hide-details
+                class="general-setting-input replacement-input"
+                placeholder="String to replace"
+                @keydown.enter.prevent="addAiSampleReplacementRule"
+                @blur="flushAutoSave"
+              />
+              <v-text-field
+                v-model="aiSampleReplacementValueDraft"
+                variant="outlined"
+                density="compact"
+                :loading="loading || saving"
+                :disabled="loading || saving"
+                hide-details
+                class="general-setting-input replacement-input"
+                placeholder="Tokenization value"
+                @keydown.enter.prevent="addAiSampleReplacementRule"
+                @blur="flushAutoSave"
+              />
+              <v-btn
+                color="primary"
+                variant="outlined"
+                :disabled="loading || saving || !aiSampleReplacementSourceDraft.trim() || !aiSampleReplacementValueDraft.trim()"
+                @click="addAiSampleReplacementRule"
+              >
+                Add
+              </v-btn>
+            </div>
+
+            <div class="chips-wrap mt-2" v-if="aiSampleReplacementRules.length">
+              <v-chip
+                v-for="(entry, index) in aiSampleReplacementRules"
+                :key="`${entry.source}=>${entry.replacement}-${index}`"
+                class="mr-2 mb-2"
+                closable
+                :disabled="loading || saving"
+                @click:close="removeAiSampleReplacementRule(index)"
+              >
+                {{ entry.source }} -> {{ entry.replacement }}
+              </v-chip>
+            </div>
+
+            <div class="setting-meta">
+              <div class="setting-details">
+                List of tokenization rules used during preprocessing before AI analysis. Add one tokenization rule at a time with both fields.
+              </div>
+              <div class="setting-default">Default: <span>empty list</span></div>
+              <div class="setting-suggested">Suggested: <span>Use consistent placeholders like NUMBER, IP, HEX, or [].</span></div>
+            </div>
+          </td>
+        </tr>
       </tbody>
     </v-table>
 
@@ -86,14 +177,26 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from "vue";
-import { getSetting, getSettings, updateSetting } from "@/services/system";
+import { getSetting, getSettingValue, getSettings, updateSetting } from "@/services/system";
 
 const minMessageLengthSettingKey = "min_message_length";
 const aiApiDailyRateLimitSettingKey = "ai_api_daily_rate_limit";
+const aiSamplePreprocessingRegexSettingKey = "ai_sample_preprocessing_regex";
+const aiSamplePreprocessingStringsSettingKey = "ai_custom_tokens";
+type ReplacementRule = {
+  source: string;
+  replacement: string;
+};
 const minMessageLength = ref("0");
 const aiApiDailyRateLimit = ref("1");
+const aiSamplePreprocessingRegex = ref("");
+const aiSampleReplacementRules = ref<ReplacementRule[]>([]);
+const aiSampleReplacementSourceDraft = ref("");
+const aiSampleReplacementValueDraft = ref("");
 const initialMinMessageLength = ref("0");
 const initialAiApiDailyRateLimit = ref("1");
+const initialAiSamplePreprocessingRegex = ref("");
+const initialAiSamplePreprocessingStringsSerialized = ref("");
 const loading = ref(false);
 const saving = ref(false);
 const message = ref("");
@@ -101,10 +204,35 @@ const success = ref(false);
 const pendingAutoSave = ref(false);
 let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
+const serializeReplacementRules = (values: ReplacementRule[]) =>
+  values.map((item) => [item.source, item.replacement] as [string, string]);
+
+const deserializeReplacementRules = (value: unknown) => {
+  if (!Array.isArray(value)) return [] as ReplacementRule[];
+
+  return value
+    .filter((item): item is [unknown, unknown] => Array.isArray(item) && item.length >= 2)
+    .map(([source, replacement]) => ({
+      source: String(source ?? "").trim(),
+      replacement: String(replacement ?? "").trim(),
+    }))
+    .filter((item) => item.source.length > 0 && item.replacement.length > 0);
+};
+
+const aiSamplePreprocessingStringsPayload = computed(() =>
+  serializeReplacementRules(aiSampleReplacementRules.value),
+);
+
+const aiSamplePreprocessingStringsSerialized = computed(() =>
+  JSON.stringify(aiSamplePreprocessingStringsPayload.value),
+);
+
 const isDirty = computed(
   () =>
     minMessageLength.value !== initialMinMessageLength.value
-    || aiApiDailyRateLimit.value !== initialAiApiDailyRateLimit.value,
+    || aiApiDailyRateLimit.value !== initialAiApiDailyRateLimit.value
+    || aiSamplePreprocessingRegex.value !== initialAiSamplePreprocessingRegex.value
+    || aiSamplePreprocessingStringsSerialized.value !== initialAiSamplePreprocessingStringsSerialized.value,
 );
 
 const normalizeMinMessageLength = (value: string) =>
@@ -119,9 +247,11 @@ const fetchSetting = async () => {
   try {
     await getSettings();
 
-    const [minMessageLengthResult, aiApiDailyRateLimitResult] = await Promise.allSettled([
+    const [minMessageLengthResult, aiApiDailyRateLimitResult, aiSamplePreprocessingRegexResult, aiSamplePreprocessingStringsResult] = await Promise.allSettled([
       getSetting(minMessageLengthSettingKey),
       getSetting(aiApiDailyRateLimitSettingKey),
+      getSetting(aiSamplePreprocessingRegexSettingKey),
+      getSettingValue<Array<[string, string]>>(aiSamplePreprocessingStringsSettingKey),
     ]);
 
     const loadedMinMessageLength = minMessageLengthResult.status === "fulfilled"
@@ -130,11 +260,22 @@ const fetchSetting = async () => {
     const loadedAiApiDailyRateLimit = aiApiDailyRateLimitResult.status === "fulfilled"
       ? normalizeAiApiDailyRateLimit(aiApiDailyRateLimitResult.value)
       : "1";
+    const loadedAiSamplePreprocessingRegex = aiSamplePreprocessingRegexResult.status === "fulfilled"
+      ? aiSamplePreprocessingRegexResult.value
+      : "";
+    const loadedAiSampleReplacementRules = aiSamplePreprocessingStringsResult.status === "fulfilled"
+      ? deserializeReplacementRules(aiSamplePreprocessingStringsResult.value)
+      : [];
+    const loadedAiSamplePreprocessingStringsSerialized = JSON.stringify(serializeReplacementRules(loadedAiSampleReplacementRules));
 
     minMessageLength.value = loadedMinMessageLength;
     aiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
+    aiSamplePreprocessingRegex.value = loadedAiSamplePreprocessingRegex;
+    aiSampleReplacementRules.value = loadedAiSampleReplacementRules;
     initialMinMessageLength.value = loadedMinMessageLength;
     initialAiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
+    initialAiSamplePreprocessingRegex.value = loadedAiSamplePreprocessingRegex;
+    initialAiSamplePreprocessingStringsSerialized.value = loadedAiSamplePreprocessingStringsSerialized;
   } catch {
     message.value = "Failed to load general settings.";
     success.value = false;
@@ -156,6 +297,8 @@ const saveSetting = async () => {
     const normalizedMinMessageLength = normalizeMinMessageLength(minMessageLength.value);
     const normalizedAiApiDailyRateLimit = normalizeAiApiDailyRateLimit(aiApiDailyRateLimit.value);
     const aiApiDailyRateLimitInteger = Number.parseInt(normalizedAiApiDailyRateLimit, 10);
+    const normalizedAiSamplePreprocessingStringsPayload = aiSamplePreprocessingStringsPayload.value;
+    const normalizedAiSamplePreprocessingStringsSerialized = aiSamplePreprocessingStringsSerialized.value;
 
     const updates: Promise<void>[] = [];
     if (normalizedMinMessageLength !== initialMinMessageLength.value) {
@@ -163,6 +306,12 @@ const saveSetting = async () => {
     }
     if (normalizedAiApiDailyRateLimit !== initialAiApiDailyRateLimit.value) {
       updates.push(updateSetting(aiApiDailyRateLimitSettingKey, aiApiDailyRateLimitInteger));
+    }
+    if (aiSamplePreprocessingRegex.value !== initialAiSamplePreprocessingRegex.value) {
+      updates.push(updateSetting(aiSamplePreprocessingRegexSettingKey, aiSamplePreprocessingRegex.value));
+    }
+    if (normalizedAiSamplePreprocessingStringsSerialized !== initialAiSamplePreprocessingStringsSerialized.value) {
+      updates.push(updateSetting(aiSamplePreprocessingStringsSettingKey, normalizedAiSamplePreprocessingStringsPayload));
     }
 
     if (updates.length === 0) return;
@@ -173,6 +322,8 @@ const saveSetting = async () => {
     aiApiDailyRateLimit.value = normalizedAiApiDailyRateLimit;
     initialMinMessageLength.value = normalizedMinMessageLength;
     initialAiApiDailyRateLimit.value = normalizedAiApiDailyRateLimit;
+    initialAiSamplePreprocessingRegex.value = aiSamplePreprocessingRegex.value;
+    initialAiSamplePreprocessingStringsSerialized.value = normalizedAiSamplePreprocessingStringsSerialized;
     message.value = "General settings auto-saved.";
     success.value = true;
   } catch {
@@ -206,6 +357,26 @@ const flushAutoSave = () => {
   void saveSetting();
 };
 
+const addAiSampleReplacementRule = () => {
+  const source = aiSampleReplacementSourceDraft.value.trim();
+  const replacement = aiSampleReplacementValueDraft.value.trim();
+  if (!source || !replacement) return;
+
+  if (aiSampleReplacementRules.value.some((rule) => rule.source === source && rule.replacement === replacement)) {
+    aiSampleReplacementSourceDraft.value = "";
+    aiSampleReplacementValueDraft.value = "";
+    return;
+  }
+
+  aiSampleReplacementRules.value.push({ source, replacement });
+  aiSampleReplacementSourceDraft.value = "";
+  aiSampleReplacementValueDraft.value = "";
+};
+
+const removeAiSampleReplacementRule = (index: number) => {
+  aiSampleReplacementRules.value.splice(index, 1);
+};
+
 watch(minMessageLength, () => {
   if (loading.value) return;
   if (!isDirty.value) return;
@@ -214,6 +385,20 @@ watch(minMessageLength, () => {
 });
 
 watch(aiApiDailyRateLimit, () => {
+  if (loading.value) return;
+  if (!isDirty.value) return;
+  pendingAutoSave.value = true;
+  scheduleAutoSave();
+});
+
+watch(aiSamplePreprocessingRegex, () => {
+  if (loading.value) return;
+  if (!isDirty.value) return;
+  pendingAutoSave.value = true;
+  scheduleAutoSave();
+});
+
+watch(aiSamplePreprocessingStringsSerialized, () => {
   if (loading.value) return;
   if (!isDirty.value) return;
   pendingAutoSave.value = true;
@@ -263,6 +448,10 @@ onMounted(fetchSetting);
   width: 100%;
 }
 
+.setting-row-flex-wrap {
+  flex-wrap: wrap;
+}
+
 .setting-meta {
   margin-bottom: 8px;
 }
@@ -290,5 +479,17 @@ onMounted(fetchSetting);
   min-width: 220px;
   max-width: 360px;
   width: 100%;
+}
+
+.replacement-input {
+  min-width: 260px;
+}
+
+.catch-all-tokenization-input {
+  max-width: 720px;
+}
+
+.chips-wrap {
+  margin-left: 16px;
 }
 </style>
