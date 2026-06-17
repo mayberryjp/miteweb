@@ -59,3 +59,8 @@ export const moveAllLowToNoise = async () => {
   const response = await api.post<{ status: string; updated: number; from: string; to: string }>("/patterns/actions/low-to-noise");
   return response.data;
 };
+
+export const deletePatternsNotSeenInDays = async (days: number) => {
+  const response = await api.delete<{ status: string; deleted: number; days?: number }>(`/patterns/actions/delete-old/${days}`);
+  return response.data;
+};

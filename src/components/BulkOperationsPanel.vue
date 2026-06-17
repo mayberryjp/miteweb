@@ -18,6 +18,32 @@
       Reclassifies all patterns currently marked as low into noise.
     </p>
 
+    <div class="d-flex flex-wrap align-center ga-3 mt-6">
+      <v-select
+        v-model="deleteOldDays"
+        :items="deleteOldDayOptions"
+        label="Delete patterns not seen in"
+        density="comfortable"
+        variant="outlined"
+        hide-details
+        class="days-select"
+      />
+
+      <v-btn
+        color="error"
+        variant="elevated"
+        prepend-icon="mdi-delete-sweep"
+        :loading="deletingOldPatterns"
+        @click="handleDeleteOldPatterns"
+      >
+        DELETE OLD PATTERNS
+      </v-btn>
+    </div>
+
+    <p class="text-body-2 mt-3">
+      Deletes patterns with no matching logs seen in the selected number of days.
+    </p>
+
     <v-alert
       v-if="message"
       :type="success ? 'success' : 'error'"
@@ -33,11 +59,14 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { moveAllLowToNoise } from "@/services/rules";
+import { deletePatternsNotSeenInDays, moveAllLowToNoise } from "@/services/rules";
 
 const movingLowToNoise = ref(false);
+const deletingOldPatterns = ref(false);
 const message = ref("");
 const success = ref(false);
+const deleteOldDayOptions = [7, 15, 30, 60, 90, 180];
+const deleteOldDays = ref(30);
 
 const handleMoveAllLowToNoise = async () => {
   movingLowToNoise.value = true;
@@ -53,4 +82,26 @@ const handleMoveAllLowToNoise = async () => {
     movingLowToNoise.value = false;
   }
 };
+
+const handleDeleteOldPatterns = async () => {
+  deletingOldPatterns.value = true;
+  message.value = "";
+  try {
+    const result = await deletePatternsNotSeenInDays(deleteOldDays.value);
+    message.value = `Deleted ${result.deleted.toLocaleString()} patterns not seen in ${deleteOldDays.value} days.`;
+    success.value = true;
+  } catch {
+    message.value = `Failed to delete patterns not seen in ${deleteOldDays.value} days. Please try again.`;
+    success.value = false;
+  } finally {
+    deletingOldPatterns.value = false;
+  }
+};
 </script>
+
+<style scoped>
+.days-select {
+  min-width: 280px;
+  max-width: 320px;
+}
+</style>
