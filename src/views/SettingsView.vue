@@ -692,6 +692,14 @@
                     <td class="text-medium-emphasis">Total Logs</td>
                     <td class="font-weight-medium">{{ stats.total_logs.toLocaleString() }}</td>
                   </tr>
+                  <tr v-if="stats?.discarded_too_small_count != null">
+                    <td class="text-medium-emphasis">Discarded (Too Small)</td>
+                    <td class="font-weight-medium">{{ stats.discarded_too_small_count.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="patternHitCountSum != null">
+                    <td class="text-medium-emphasis">Pattern Hit Count Sum</td>
+                    <td class="font-weight-medium">{{ patternHitCountSum.toLocaleString() }}</td>
+                  </tr>
                   <tr v-if="stats?.alerts_last_hour != null">
                     <td class="text-medium-emphasis">Alerts Last Hour</td>
                     <td class="font-weight-medium">{{ stats.alerts_last_hour.toLocaleString() }}</td>
@@ -800,7 +808,7 @@ import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSetting, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns } from "@/services/rules";
+import { deleteAllPatterns, getPatterns } from "@/services/rules";
 import type { HealthStatus, StatsData } from "@/types";
 import StatusBadge from "@/components/StatusBadge.vue";
 import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
@@ -813,6 +821,7 @@ const activeTab = ref("general");
 const appVersion = __APP_VERSION__;
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
+const patternHitCountSum = ref<number | null>(null);
 const error = ref("");
 const refreshing = ref(false);
 const testingDiscord = ref(false);
@@ -1444,11 +1453,29 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const fetchPatternHitCountSum = async () => {
+  const limit = 1000;
+  let offset = 0;
+  let total = Number.POSITIVE_INFINITY;
+  let sum = 0;
+
+  while (offset < total) {
+    const response = await getPatterns({ limit, offset });
+    sum += response.items.reduce((currentSum, pattern) => currentSum + (pattern.hit_count ?? 0), 0);
+    total = response.total;
+    offset += response.items.length;
+    if (response.items.length === 0) break;
+  }
+
+  patternHitCountSum.value = sum;
+};
+
 const fetchData = async () => {
   try {
-    const [h, s] = await Promise.allSettled([getHealth(), getStats()]);
+    const [h, s, p] = await Promise.allSettled([getHealth(), getStats(), fetchPatternHitCountSum()]);
     if (h.status === "fulfilled") health.value = h.value;
     if (s.status === "fulfilled") stats.value = s.value;
+    if (p.status === "rejected") patternHitCountSum.value = null;
     error.value = [h, s].some((r) => r.status === "rejected")
       ? "Backend unavailable. Check the Mite backend container."
       : "";
