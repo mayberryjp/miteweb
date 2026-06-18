@@ -30,6 +30,7 @@
             :log-stats="hourlyLogs"
             :alert-stats="hourlyAlerts"
             :noise-stats="hourlyNoise"
+            :pattern-stats-100="hourlyPatterns100"
             :loading="chartLoading"
             :error="chartError"
           />
@@ -96,6 +97,7 @@ import { ref, computed, onMounted, onUnmounted } from "vue";
 import { getHealth, getStats } from "@/services/system";
 import { getAlerts, getAlertsHourly, deleteAlert } from "@/services/alerts";
 import { getLogsHourly, getLogsNoiseHourly } from "@/services/logs";
+import { getPatternsHourly } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import StatsChart from "@/components/StatsChart.vue";
@@ -108,6 +110,7 @@ const loading = ref(true);
 const hourlyLogs = ref<HourlyStat[]>([]);
 const hourlyAlerts = ref<HourlyStat[]>([]);
 const hourlyNoise = ref<HourlyStat[]>([]);
+const hourlyPatterns100 = ref<HourlyStat[]>([]);
 const expandedAlerts = ref(new Set<number>());
 const alertsPerPage = ref(50);
 const chartLoading = ref(true);
@@ -230,10 +233,16 @@ const fetchChartData = async () => {
   chartLoading.value = true;
   chartError.value = false;
   try {
-    const [logs, alerts, noise] = await Promise.all([getLogsHourly(100), getAlertsHourly(100), getLogsNoiseHourly(100)]);
+    const [logs, alerts, noise, patterns100] = await Promise.all([
+      getLogsHourly(100),
+      getAlertsHourly(100),
+      getLogsNoiseHourly(100),
+      getPatternsHourly(100),
+    ]);
     hourlyLogs.value = logs.filter((s) => !isCurrentHourBucket(s.hour));
     hourlyAlerts.value = alerts.filter((s) => !isCurrentHourBucket(s.hour));
     hourlyNoise.value = noise.filter((s) => !isCurrentHourBucket(s.hour));
+    hourlyPatterns100.value = patterns100.filter((s) => !isCurrentHourBucket(s.hour));
   } catch {
     chartError.value = true;
   } finally {

@@ -2,7 +2,7 @@
   <v-card color="#0d1117" class="stats-chart-card">
     <v-card-title class="stats-chart-header d-flex align-center px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 stats-chart-title">
-        Log &amp; Alert Rates
+        Log, Alert, Noise, and Pattern Rates
       </span>
     </v-card-title>
     <v-divider></v-divider>
@@ -41,13 +41,20 @@ const props = defineProps<{
   logStats: HourlyStat[];
   alertStats: HourlyStat[];
   noiseStats?: HourlyStat[];
+  patternStats100?: HourlyStat[];
   loading: boolean;
   error: boolean;
 }>();
 
 const noiseStats = computed(() => props.noiseStats ?? []);
+const patternStats100 = computed(() => props.patternStats100 ?? []);
 
-const hasData = computed(() => props.logStats.length > 0 || props.alertStats.length > 0 || noiseStats.value.length > 0);
+const hasData = computed(() =>
+  props.logStats.length > 0 ||
+  props.alertStats.length > 0 ||
+  noiseStats.value.length > 0 ||
+  patternStats100.value.length > 0
+);
 
 const formatHour = (hour: string) => {
   try {
@@ -65,43 +72,46 @@ const formatHour = (hour: string) => {
   }
 };
 
-const categories = computed(() => {
-  const longest = [props.logStats, props.alertStats, noiseStats.value].reduce(
-    (a, b) => (b.length > a.length ? b : a),
-    [] as HourlyStat[]
-  );
-  return [...longest]
-    .sort((a, b) => a.hour.localeCompare(b.hour))
-    .map((s) => formatHour(s.hour));
+const sortedByHour = (stats: HourlyStat[]) => [...stats].sort((a, b) => a.hour.localeCompare(b.hour));
+
+const baseHours = computed(() => {
+  const allHours = [
+    ...props.logStats.map((s) => s.hour),
+    ...props.alertStats.map((s) => s.hour),
+    ...noiseStats.value.map((s) => s.hour),
+    ...patternStats100.value.map((s) => s.hour),
+  ];
+  return [...new Set(allHours)].sort((a, b) => a.localeCompare(b));
 });
 
-const sortedLogs = computed(() =>
-  [...props.logStats].sort((a, b) => a.hour.localeCompare(b.hour))
-);
+const categories = computed(() => baseHours.value.map((hour) => formatHour(hour)));
 
-const sortedAlerts = computed(() =>
-  [...props.alertStats].sort((a, b) => a.hour.localeCompare(b.hour))
-);
-
-const sortedNoise = computed(() =>
-  [...noiseStats.value].sort((a, b) => a.hour.localeCompare(b.hour))
-);
+const toSeriesData = (stats: HourlyStat[]) => {
+  const byHour = new Map(sortedByHour(stats).map((s) => [s.hour, s.count]));
+  return baseHours.value.map((hour) => byHour.get(hour) ?? null);
+};
 
 const series = computed(() => [
   {
     name: "Logs",
     type: "line",
-    data: sortedLogs.value.map((s) => s.count),
+    data: toSeriesData(props.logStats),
   },
   {
     name: "Alerts",
     type: "bar",
-    data: sortedAlerts.value.map((s) => s.count),
+    data: toSeriesData(props.alertStats),
+    yAxisIndex: 1,
   },
   {
     name: "Noise",
     type: "line",
-    data: sortedNoise.value.map((s) => s.count),
+    data: toSeriesData(noiseStats.value),
+  },
+  {
+    name: "Patterns",
+    type: "line",
+    data: toSeriesData(patternStats100.value),
   },
 ]);
 
@@ -113,9 +123,9 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false },
   },
-  colors: ["#5CDD8B", "#B71C1C", "#FF9800"],
-  fill: { opacity: [1, 0.3, 1] },
-  stroke: { curve: "smooth", width: [3, 0, 2] },
+  colors: ["#5CDD8B", "#B71C1C", "#FF9800", "#1E88E5"],
+  fill: { opacity: [1, 0.3, 1, 1] },
+  stroke: { curve: "smooth", width: [3, 0, 2, 2] },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
@@ -124,6 +134,7 @@ const chartOptions = computed(() => ({
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} logs` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} alerts` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} noise` },
+      { formatter: (val: number) => `${Math.round(val).toLocaleString()} patterns` },
     ],
   },
   grid: {
@@ -157,7 +168,11 @@ const chartOptions = computed(() => ({
     },
     {
       show: false,
-      seriesName: "Logs",
+      seriesName: "Noise",
+    },
+    {
+      show: false,
+      seriesName: "Patterns",
     },
   ],
   legend: {

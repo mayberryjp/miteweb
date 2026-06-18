@@ -1,5 +1,5 @@
 import api from "./api";
-import type { PatternItem, PaginatedResponse, LogItem } from "@/types";
+import type { PatternItem, PaginatedResponse, LogItem, HourlyStat } from "@/types";
 
 export const getPatterns = async (params?: {
   limit?: number;
@@ -31,6 +31,11 @@ export const updatePattern = async (
 export const getPatternStats = async (hours: number = 12) => {
   const response = await api.get<Record<string, { hour: string; count: number }[]>>("/patterns/stats", { params: { hours } });
   return response.data;
+};
+
+export const getPatternsHourly = async (hours = 24) => {
+  const response = await api.get<{ hours: number; stats: HourlyStat[] }>("/patterns/hourly", { params: { hours } });
+  return response.data.stats;
 };
 
 export const getPatternTimeSeries = async (patternId: number, hours: number = 24) => {
