@@ -71,34 +71,6 @@
 
         <tr>
           <td class="setting-name-cell">
-            <div class="font-weight-medium">Catch All Tokenization Regex</div>
-          </td>
-          <td class="align-top">
-            <div class="setting-row-flex">
-              <v-textarea
-                v-model="aiSamplePreprocessingRegex"
-                variant="outlined"
-                density="compact"
-                rows="2"
-                :loading="loading || saving"
-                :disabled="loading || saving"
-                hide-details
-                class="general-setting-input catch-all-tokenization-input"
-                @blur="flushAutoSave"
-              />
-            </div>
-            <div class="setting-meta">
-              <div class="setting-details">
-                Regular expression used to tokenize dynamic values in log messages before sending them to AI for analysis. Any text matching this regex is replaced with the token <code>DYNAMIC_VALUE</code>. This helps AI focus on structural patterns instead of specific values. Example: <code>[0-9]+|[0-9.]+\.[0-9.]+|[0-9a-fA-F]+</code> can tokenize numbers, IPs, and hex values. The original non-tokenized logs are still used for final regex generation and testing.
-              </div>
-              <div class="setting-default">Default: <span>[0-9]+|[0-9.]+\.[0-9.]+|[0-9a-fA-F]+</span></div>
-              <div class="setting-suggested">Suggested: <span>Include patterns for numbers, timestamps, IPs, MACs, hex values, and other dynamic fields relevant to your logs.</span></div>
-            </div>
-          </td>
-        </tr>
-
-        <tr>
-          <td class="setting-name-cell">
             <div class="font-weight-medium">User Defined Tokenization</div>
           </td>
           <td class="align-top">
@@ -154,6 +126,9 @@
               <div class="setting-details">
                 List of tokenization rules used during preprocessing before AI analysis. Add one tokenization rule at a time with both fields.
               </div>
+              <div class="setting-details">
+                Tokenization of common patterns helps improve AI regex matching. It's not recommended to remove the default tokens.
+              </div>
               <div class="setting-default">Default: <span>empty list</span></div>
               <div class="setting-suggested">Suggested: <span>Use consistent placeholders like NUMBER, IP, HEX, or [].</span></div>
             </div>
@@ -187,7 +162,6 @@ const props = defineProps<{
 
 const minMessageLengthSettingKey = "min_message_length";
 const aiApiDailyRateLimitSettingKey = "ai_api_daily_rate_limit";
-const aiSamplePreprocessingRegexSettingKey = "ai_sample_preprocessing_regex";
 const aiSamplePreprocessingStringsSettingKey = "ai_custom_tokens";
 type ReplacementRule = {
   source: string;
@@ -195,13 +169,11 @@ type ReplacementRule = {
 };
 const minMessageLength = ref("0");
 const aiApiDailyRateLimit = ref("1");
-const aiSamplePreprocessingRegex = ref("");
 const aiSampleReplacementRules = ref<ReplacementRule[]>([]);
 const aiSampleReplacementSourceDraft = ref("");
 const aiSampleReplacementValueDraft = ref("");
 const initialMinMessageLength = ref("0");
 const initialAiApiDailyRateLimit = ref("1");
-const initialAiSamplePreprocessingRegex = ref("");
 const initialAiSamplePreprocessingStringsSerialized = ref("");
 const loading = ref(true);
 const saving = ref(false);
@@ -256,7 +228,6 @@ const isDirty = computed(
   () =>
     minMessageLength.value !== initialMinMessageLength.value
     || aiApiDailyRateLimit.value !== initialAiApiDailyRateLimit.value
-    || aiSamplePreprocessingRegex.value !== initialAiSamplePreprocessingRegex.value
     || aiSamplePreprocessingStringsSerialized.value !== initialAiSamplePreprocessingStringsSerialized.value,
 );
 
@@ -273,17 +244,14 @@ const applySettings = () => {
   try {
     const loadedMinMessageLength = normalizeMinMessageLength(getSettingValue(minMessageLengthSettingKey, "0"));
     const loadedAiApiDailyRateLimit = normalizeAiApiDailyRateLimit(getSettingValue(aiApiDailyRateLimitSettingKey, "1"));
-    const loadedAiSamplePreprocessingRegex = getSettingValue(aiSamplePreprocessingRegexSettingKey, "");
     const loadedAiSampleReplacementRules = deserializeReplacementRules(getStructuredSettingValue(aiSamplePreprocessingStringsSettingKey));
     const loadedAiSamplePreprocessingStringsSerialized = JSON.stringify(serializeReplacementRules(loadedAiSampleReplacementRules));
 
     minMessageLength.value = loadedMinMessageLength;
     aiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
-    aiSamplePreprocessingRegex.value = loadedAiSamplePreprocessingRegex;
     aiSampleReplacementRules.value = loadedAiSampleReplacementRules;
     initialMinMessageLength.value = loadedMinMessageLength;
     initialAiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
-    initialAiSamplePreprocessingRegex.value = loadedAiSamplePreprocessingRegex;
     initialAiSamplePreprocessingStringsSerialized.value = loadedAiSamplePreprocessingStringsSerialized;
   } catch {
     message.value = "Failed to load general settings.";
@@ -316,9 +284,6 @@ const saveSetting = async () => {
     if (normalizedAiApiDailyRateLimit !== initialAiApiDailyRateLimit.value) {
       updates.push(updateSetting(aiApiDailyRateLimitSettingKey, aiApiDailyRateLimitInteger));
     }
-    if (aiSamplePreprocessingRegex.value !== initialAiSamplePreprocessingRegex.value) {
-      updates.push(updateSetting(aiSamplePreprocessingRegexSettingKey, aiSamplePreprocessingRegex.value));
-    }
     if (normalizedAiSamplePreprocessingStringsSerialized !== initialAiSamplePreprocessingStringsSerialized.value) {
       updates.push(updateSetting(aiSamplePreprocessingStringsSettingKey, normalizedAiSamplePreprocessingStringsPayload));
     }
@@ -331,7 +296,6 @@ const saveSetting = async () => {
     aiApiDailyRateLimit.value = normalizedAiApiDailyRateLimit;
     initialMinMessageLength.value = normalizedMinMessageLength;
     initialAiApiDailyRateLimit.value = normalizedAiApiDailyRateLimit;
-    initialAiSamplePreprocessingRegex.value = aiSamplePreprocessingRegex.value;
     initialAiSamplePreprocessingStringsSerialized.value = normalizedAiSamplePreprocessingStringsSerialized;
     message.value = "General settings auto-saved.";
     success.value = true;
@@ -394,13 +358,6 @@ watch(minMessageLength, () => {
 });
 
 watch(aiApiDailyRateLimit, () => {
-  if (loading.value) return;
-  if (!isDirty.value) return;
-  pendingAutoSave.value = true;
-  scheduleAutoSave();
-});
-
-watch(aiSamplePreprocessingRegex, () => {
   if (loading.value) return;
   if (!isDirty.value) return;
   pendingAutoSave.value = true;
@@ -499,10 +456,6 @@ watch(
 
 .replacement-input {
   min-width: 260px;
-}
-
-.catch-all-tokenization-input {
-  max-width: 720px;
 }
 
 .chips-wrap {

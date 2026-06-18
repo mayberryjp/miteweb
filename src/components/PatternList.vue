@@ -73,9 +73,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted } from "vue";
 import type { PatternItem } from "@/types";
 import AlertBarChart from "@/components/AlertBarChart.vue";
+
+const PATTERN_LAST_VISIT_STORAGE_KEY = "miteweb:patterns-last-visit-at";
 
 const props = defineProps<{
   patterns: PatternItem[];
@@ -88,6 +90,7 @@ defineEmits<{
 }>();
 
 const searchTerm = ref("");
+const previousVisitAt = ref<number | null>(null);
 
 const severityOrder: Record<string, number> = {
   critical: 0, crit: 0, emerg: 0, alert: 1,
@@ -202,11 +205,24 @@ const formatCount = (n: number): string => {
 
 const isNewPattern = (p: PatternItem): boolean => {
   if (!p.first_seen_at) return false;
+  if (previousVisitAt.value == null) return false;
   const firstSeenTs = Date.parse(p.first_seen_at);
   if (Number.isNaN(firstSeenTs)) return false;
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  return Date.now() - firstSeenTs <= oneDayMs;
+  return firstSeenTs > previousVisitAt.value;
 };
+
+onMounted(() => {
+  try {
+    const storedValue = window.localStorage.getItem(PATTERN_LAST_VISIT_STORAGE_KEY);
+    if (storedValue) {
+      const parsedValue = Number.parseInt(storedValue, 10);
+      previousVisitAt.value = Number.isNaN(parsedValue) ? null : parsedValue;
+    }
+    window.localStorage.setItem(PATTERN_LAST_VISIT_STORAGE_KEY, String(Date.now()));
+  } catch {
+    previousVisitAt.value = null;
+  }
+});
 </script>
 
 <style scoped>
