@@ -1440,7 +1440,9 @@ const fetchPatternHitCountSum = async () => {
 
   while (offset < total) {
     const response = await getPatterns({ limit, offset });
-    sum += response.items.reduce((currentSum, pattern) => currentSum + (pattern.hit_count ?? 0), 0);
+    sum += response.items
+      .filter((p) => (p.effective_classification ?? p.classification) !== "noise")
+      .reduce((currentSum, pattern) => currentSum + (pattern.hit_count ?? 0), 0);
     total = response.total;
     offset += response.items.length;
     if (response.items.length === 0) break;

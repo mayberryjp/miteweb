@@ -123,7 +123,7 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false },
   },
-  colors: ["#5CDD8B", "#B71C1C", "#FF9800", "#1E88E5"],
+  colors: ["#1E88E5", "#B71C1C", "#FF9800", "#5CDD8B"],
   fill: { opacity: [1, 0.3, 1, 1] },
   stroke: { curve: "smooth", width: [3, 0, 2, 2] },
   dataLabels: { enabled: false },
@@ -152,7 +152,7 @@ const chartOptions = computed(() => ({
   },
   yaxis: [
     {
-      title: { text: "Logs", style: { color: "#5CDD8B" } },
+      title: { text: "Logs", style: { color: "#1E88E5" } },
       labels: {
         style: { colors: "#b1b8c0" },
         formatter: (val: number) => Math.round(val).toLocaleString(),
