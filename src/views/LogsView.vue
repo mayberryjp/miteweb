@@ -29,16 +29,14 @@
           hide-details
         ></v-text-field>
       </v-col>
-      <v-col cols="6" sm="3" md="2">
-        <v-select
-          v-model="filters.severity"
-          :items="severityItems"
+      <v-col cols="6" sm="3" md="2" class="d-flex align-center">
+        <v-switch
+          v-model="filters.hideNoise"
           density="compact"
-          variant="outlined"
-          placeholder="Severity"
-          clearable
+          color="primary"
           hide-details
-        ></v-select>
+          label="Hide noise"
+        ></v-switch>
       </v-col>
       <v-col cols="6" sm="3" md="2">
         <v-text-field
@@ -154,16 +152,15 @@ const expandedId = ref<number | null>(null);
 const lastSeenId = ref(0);
 const patternNames = ref<Record<number, string>>({});
 const patternClassifications = ref<Record<number, string>>({});
-const severityItems = ["emerg", "alert", "crit", "err", "warning", "notice", "info", "debug"];
 
 const filters = reactive({
   search: "",
   source_ip: "",
-  severity: "",
+  hideNoise: true,
   limit: 100,
 });
 
-const hasActiveFilters = computed(() => filters.search || filters.source_ip || filters.severity);
+const hasActiveFilters = computed(() => filters.search || filters.source_ip);
 
 const liveStatus = computed<"live" | "paused" | "disconnected">(() => {
   if (error.value) return "disconnected";
@@ -174,7 +171,7 @@ const filteredLogs = computed(() => {
   return logs.value.filter((log) => {
     if (filters.search && !log.message.toLowerCase().includes(filters.search.toLowerCase())) return false;
     if (filters.source_ip && log.source_ip?.toLowerCase() !== filters.source_ip.toLowerCase()) return false;
-    if (filters.severity && log.severity?.toLowerCase() !== filters.severity.toLowerCase()) return false;
+    if (filters.hideNoise && getPatternClassification(log).toLowerCase() === "noise") return false;
     return true;
   });
 });
@@ -224,7 +221,6 @@ const toggleLive = () => { isLive.value = !isLive.value; };
 const clearFilters = () => {
   filters.search = "";
   filters.source_ip = "";
-  filters.severity = "";
 };
 
 const fetchInitial = async () => {
