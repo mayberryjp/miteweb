@@ -11,6 +11,7 @@
           variant="tonal"
           @click="toggleLive"
         >{{ isLive ? 'Pause' : 'Resume' }}</v-btn>
+        <v-btn size="small" variant="outlined" @click="clearLogs">Clear</v-btn>
       </div>
     </div>
 
@@ -217,6 +218,11 @@ const refreshPatternNamesIfMissing = async (items: LogItem[]) => {
 };
 
 const toggleLive = () => { isLive.value = !isLive.value; };
+
+const clearLogs = () => {
+  logs.value = [];
+  expandedId.value = null;
+};
 
 const clearFilters = () => {
   filters.search = "";
