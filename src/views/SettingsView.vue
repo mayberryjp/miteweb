@@ -18,6 +18,7 @@
           <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
           <v-tab value="notifications">NOTIFICATIONS</v-tab>
+          <v-tab value="patterns">PATTERNS</v-tab>
           <v-tab value="bulk-operations">BULK OPERATIONS</v-tab>
           <v-tab value="actions">DANGEROUS ACTIONS</v-tab>
         </v-tabs>
@@ -497,6 +498,121 @@
               </v-alert>
             </v-window-item>
 
+            <v-window-item value="patterns">
+              <h3>Patterns</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-text-field
+                v-model="patternIdSearch"
+                class="mb-4"
+                variant="outlined"
+                density="compact"
+                hide-details
+                clearable
+                label="Search by Pattern ID or Regex"
+                placeholder="e.g. 2405, timeout, wlan"
+              />
+
+              <v-table density="compact" class="rounded-lg" style="background-color: #0d1117;">
+                <thead>
+                  <tr>
+                    <th class="text-left">ID</th>
+                    <th class="text-left">Name</th>
+                    <th class="text-left pattern-severity-col">Severity</th>
+                    <th class="text-left">Regular Expression</th>
+                    <th class="text-left pattern-actions-col">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="pattern in filteredPatterns" :key="pattern.id">
+                    <td class="font-weight-medium">{{ pattern.id }}</td>
+                    <td>
+                      <v-text-field
+                        v-model="pattern.title"
+                        class="pattern-name-input"
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                        placeholder="Name"
+                        maxlength="35"
+                        :disabled="savingPatternId === pattern.id || deletingPatternId === pattern.id"
+                      />
+                    </td>
+                    <td>
+                      <v-select
+                        v-model="pattern.classification"
+                        class="pattern-severity-input"
+                        :items="patternSeverityOptions"
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                        :disabled="savingPatternId === pattern.id || deletingPatternId === pattern.id"
+                      />
+                    </td>
+                    <td>
+                      <v-text-field
+                        v-model="pattern.match_regex"
+                        class="pattern-regex-input"
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                        placeholder="Regular expression"
+                        :disabled="savingPatternId === pattern.id || deletingPatternId === pattern.id"
+                      />
+                    </td>
+                    <td>
+                      <div class="d-flex align-center" style="gap: 8px;">
+                        <v-btn
+                          size="small"
+                          variant="outlined"
+                          color="primary"
+                          :loading="savingPatternId === pattern.id"
+                          :disabled="deletingPatternId === pattern.id"
+                          @click="savePatternRow(pattern)"
+                        >
+                          Save
+                        </v-btn>
+                        <v-btn
+                          icon
+                          variant="text"
+                          size="small"
+                          color="error"
+                          :loading="deletingPatternId === pattern.id"
+                          :disabled="savingPatternId === pattern.id"
+                          @click="removePattern(pattern.id)"
+                        >
+                          <v-icon icon="mdi-trash-can-outline" />
+                        </v-btn>
+                      </div>
+                    </td>
+                  </tr>
+                  <tr v-if="filteredPatterns.length === 0">
+                    <td colspan="5" class="text-center text-medium-emphasis pa-4">No matching patterns</td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <v-btn
+                class="mt-4"
+                variant="outlined"
+                color="primary"
+                :loading="loadingPatterns"
+                @click="loadAllPatterns"
+              >
+                Refresh Patterns
+              </v-btn>
+              <v-alert
+                v-if="patternsMessage"
+                :type="patternsSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="patternsMessage = ''"
+              >
+                {{ patternsMessage }}
+              </v-alert>
+            </v-window-item>
+
             <v-window-item value="bulk-operations">
               <h3>Bulk Operations</h3>
               <v-divider class="my-4"></v-divider>
@@ -669,6 +785,17 @@
                     <td class="font-weight-medium">{{ health.version }}</td>
                   </tr>
                   <tr>
+                    <td class="text-medium-emphasis">AI Efficiency Score</td>
+                    <td>
+                      <span
+                        class="font-weight-medium"
+                        :style="{ color: aiEfficiencyScoreValue != null ? getAiEfficiencyScoreColor(aiEfficiencyScoreValue) : '#888' }"
+                      >
+                        {{ aiEfficiencyScoreValue != null ? formatAiEfficiencyScore(aiEfficiencyScoreValue) : 'N/A' }}
+                      </span>
+                    </td>
+                  </tr>
+                  <tr>
                     <td class="text-medium-emphasis">Frontend Version</td>
                     <td class="font-weight-medium">{{ appVersion }}</td>
                   </tr>
@@ -808,8 +935,8 @@ import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSettings, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns, getPatterns } from "@/services/rules";
-import type { HealthStatus, StatsData } from "@/types";
+import { deleteAllPatterns, getPatterns, updatePattern, deletePattern } from "@/services/rules";
+import type { HealthStatus, StatsData, PatternItem } from "@/types";
 import type { EditableSetting } from "@/services/system";
 import StatusBadge from "@/components/StatusBadge.vue";
 import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
@@ -828,6 +955,12 @@ const editableSettingsReady = ref(false);
 const editableSettingsByKey = computed(() => new Map(editableSettings.value.map((setting) => [setting.key, setting] as const)));
 const error = ref("");
 const refreshing = ref(false);
+
+const aiEfficiencyScoreValue = computed(() => {
+  const setting = editableSettingsByKey.value.get("ai_efficiency_score");
+  const rawValue = setting?.value ?? setting?.default;
+  return typeof rawValue === "number" ? rawValue : null;
+});
 const testingDiscord = ref(false);
 const deletingAlerts = ref(false);
 const deleteAlertsDialog = ref(false);
@@ -848,6 +981,41 @@ const initialDiscordWebhookUrl = ref("");
 const showDiscordWebhook = ref(false);
 const notificationsPendingSave = ref(false);
 let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Patterns tab state
+const allPatterns = ref<PatternItem[]>([]);
+const loadingPatterns = ref(false);
+const patternsMessage = ref("");
+const patternsSuccess = ref(false);
+const patternIdSearch = ref("");
+const patternRegexSearchSnapshot = ref<Record<number, string>>({});
+const patternSeverityOptions = ["critical", "warning", "info", "debug", "noise"];
+const savingPatternId = ref<number | null>(null);
+const deletingPatternId = ref<number | null>(null);
+
+const sortedPatterns = computed(() => {
+  return [...allPatterns.value].sort((a, b) => a.id - b.id);
+});
+
+const filteredPatterns = computed(() => {
+  const query = patternIdSearch.value.trim();
+  if (!query) return sortedPatterns.value;
+
+  const tokens = query
+    .split(",")
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0);
+
+  return sortedPatterns.value.filter((pattern) => {
+    const idText = String(pattern.id);
+    const snapshotRegex = patternRegexSearchSnapshot.value[pattern.id] ?? "";
+
+    return tokens.some((token) => {
+      const normalizedToken = token.toLowerCase();
+      return idText.includes(token) || snapshotRegex.includes(normalizedToken);
+    });
+  });
+});
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || "/api";
 const AI_API_COST_PER_PATTERN = 0.00025;
@@ -1432,6 +1600,17 @@ const formatBytes = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const clampPercent = (value: number) => Math.min(100, Math.max(0, value));
+
+const formatAiEfficiencyScore = (score: number) => `${clampPercent(score).toFixed(1)}%`;
+
+const getAiEfficiencyScoreColor = (score: number) => {
+  const normalized = clampPercent(score);
+  if (normalized >= 80) return "#3fb950";
+  if (normalized >= 50) return "#d29922";
+  return "#f85149";
+};
+
 const fetchPatternHitCountSum = async () => {
   const limit = 1000;
   let offset = 0;
@@ -1559,11 +1738,71 @@ const handleDeleteAllPatterns = async () => {
   }
 };
 
+const loadAllPatterns = async () => {
+  loadingPatterns.value = true;
+  patternsMessage.value = "";
+  try {
+    const response = await getPatterns({ limit: 10000 });
+    allPatterns.value = response.items || [];
+    patternRegexSearchSnapshot.value = Object.fromEntries(
+      allPatterns.value.map((pattern) => [pattern.id, (pattern.match_regex || "").toLowerCase()]),
+    );
+    patternsSuccess.value = true;
+    patternsMessage.value = `Loaded ${allPatterns.value.length} patterns`;
+  } catch (error) {
+    console.error("Failed to load patterns:", error);
+    patternsSuccess.value = false;
+    patternsMessage.value = "Failed to load patterns";
+  } finally {
+    loadingPatterns.value = false;
+  }
+};
+
+const savePatternRow = async (pattern: PatternItem) => {
+  savingPatternId.value = pattern.id;
+  try {
+    await updatePattern(pattern.id, {
+      title: pattern.title || "",
+      match_regex: pattern.match_regex || "",
+      classification: pattern.classification || "info",
+    });
+
+    patternsSuccess.value = true;
+    patternsMessage.value = `Pattern ${pattern.id} updated successfully`;
+  } catch (error) {
+    console.error("Failed to update pattern:", error);
+    patternsSuccess.value = false;
+    patternsMessage.value = `Failed to update pattern: ${error}`;
+  } finally {
+    savingPatternId.value = null;
+  }
+};
+
+const removePattern = async (patternId: number) => {
+  deletingPatternId.value = patternId;
+  try {
+    await deletePattern(patternId);
+    allPatterns.value = allPatterns.value.filter((p) => p.id !== patternId);
+    const snapshot = { ...patternRegexSearchSnapshot.value };
+    delete snapshot[patternId];
+    patternRegexSearchSnapshot.value = snapshot;
+    patternsSuccess.value = true;
+    patternsMessage.value = `Pattern ${patternId} deleted successfully`;
+  } catch (error) {
+    console.error("Failed to delete pattern:", error);
+    patternsSuccess.value = false;
+    patternsMessage.value = `Failed to delete pattern: ${error}`;
+  } finally {
+    deletingPatternId.value = null;
+  }
+};
+
 let healthRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   fetchData();
   void initializeSettingsPages();
+  void loadAllPatterns();
   healthRefreshTimer = setInterval(fetchData, 60_000);
 });
 
@@ -1620,6 +1859,28 @@ onUnmounted(() => {
 .settings-form-table :deep(td) {
   vertical-align: top;
   border-bottom: none !important;
+}
+
+.pattern-severity-col {
+  width: 190px;
+}
+
+.pattern-actions-col {
+  width: 120px;
+}
+
+.pattern-name-input {
+  min-width: 180px;
+  max-width: 220px;
+}
+
+.pattern-severity-input {
+  min-width: 170px;
+  max-width: 190px;
+}
+
+.pattern-regex-input {
+  min-width: 420px;
 }
 
 .settings-form-table :deep(tbody tr) {

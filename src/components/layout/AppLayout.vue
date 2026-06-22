@@ -35,6 +35,9 @@
         aria-label="Open navigation menu"
         @click="mobileMenuOpen = !mobileMenuOpen"
       ></v-app-bar-nav-icon>
+
+      <NotificationsBell />
+      <ProfileMenu />
     </v-app-bar>
 
     <!-- Mobile navigation drawer -->
@@ -73,6 +76,8 @@
 import { ref } from "vue";
 import { useRoute } from "vue-router";
 import { useDisplay } from "vuetify";
+import NotificationsBell from "@/components/NotificationsBell.vue";
+import ProfileMenu from "@/components/ProfileMenu.vue";
 
 const route = useRoute();
 const mobileMenuOpen = ref(false);
@@ -81,8 +86,9 @@ const { lgAndUp } = useDisplay();
 const navItems = [
   { to: "/", label: "Dashboard", icon: "mdi-view-dashboard" },
   { to: "/logs", label: "Live Logs", icon: "mdi-file-document-outline" },
-  { to: "https://github.com/mayberryjp/mite/issues", label: "Requests & Roadmap", icon: "mdi-map-marker-path", external: true },
+  { to: "https://github.com/mayberryjp/mite", label: "Documentation", icon: "mdi-book-open-variant", external: true },
   { to: "/settings", label: "Settings", icon: "mdi-cog" },
+  { to: "https://github.com/mayberryjp/mite/issues", label: "Requests & Roadmap", icon: "mdi-map-marker-path", external: true },
 ];
 
 const isActive = (to: string) => {

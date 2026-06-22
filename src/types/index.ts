@@ -33,14 +33,11 @@ export interface AlertItem {
   pattern_text?: string;
 }
 
-export interface HostItem {
-  id: number;
-  host?: string;
-  source_ip: string;
-  first_seen_at: string;
-  last_seen_at: string;
-  log_count: number;
-  alert_count: number;
+export interface ActionItem {
+  action_id: number;
+  action_text: string;
+  insert_date: string;
+  acknowledged: boolean;
 }
 
 export interface PatternItem {
