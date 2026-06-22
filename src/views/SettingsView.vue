@@ -776,14 +776,6 @@
                     <td class="text-medium-emphasis">Status</td>
                     <td><StatusBadge :status="health?.status === 'ok' ? 'ok' : 'error'" :label="health?.status || 'unknown'" /></td>
                   </tr>
-                  <tr v-if="health?.uptime">
-                    <td class="text-medium-emphasis">Uptime</td>
-                    <td class="font-weight-medium">{{ formatUptime(health.uptime) }}</td>
-                  </tr>
-                  <tr v-if="health?.version">
-                    <td class="text-medium-emphasis">Backend Version</td>
-                    <td class="font-weight-medium">{{ health.version }}</td>
-                  </tr>
                   <tr>
                     <td class="text-medium-emphasis">AI Efficiency Score</td>
                     <td>
@@ -794,6 +786,14 @@
                         {{ aiEfficiencyScoreValue != null ? formatAiEfficiencyScore(aiEfficiencyScoreValue) : 'N/A' }}
                       </span>
                     </td>
+                  </tr>
+                  <tr v-if="health?.uptime">
+                    <td class="text-medium-emphasis">Uptime</td>
+                    <td class="font-weight-medium">{{ formatUptime(health.uptime) }}</td>
+                  </tr>
+                  <tr v-if="health?.version">
+                    <td class="text-medium-emphasis">Backend Version</td>
+                    <td class="font-weight-medium">{{ health.version }}</td>
                   </tr>
                   <tr>
                     <td class="text-medium-emphasis">Frontend Version</td>
