@@ -547,6 +547,8 @@
                         v-model="pattern.user_override"
                         class="pattern-severity-input"
                         :items="patternSeverityOptions"
+                        item-title="title"
+                        item-value="value"
                         variant="outlined"
                         density="compact"
                         hide-details
@@ -634,6 +636,90 @@
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Create action for new patterns</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="actionOnNewPatterns"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="notificationsLoading || notificationsSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Adds an action item when Mite discovers a brand new pattern.</div>
+                        <div class="setting-default">Default: <span>Disabled</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Send Discord notification for new patterns</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="notifyOnNewPatterns"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="notificationsLoading || notificationsSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Sends a Discord message when Mite discovers a brand new pattern.</div>
+                        <div class="setting-default">Default: <span>Disabled</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Create action when no logs are received for 24 hours</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="actionOnNoLogs"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="notificationsLoading || notificationsSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Adds an action item if the previous 24 hours had no incoming logs.</div>
+                        <div class="setting-default">Default: <span>Disabled</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Send Discord notification when no logs are received for 24 hours</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="notifyOnNoLogs"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="notificationsLoading || notificationsSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Sends a Discord message if the previous 24 hours had no incoming logs.</div>
+                        <div class="setting-default">Default: <span>Disabled</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
                   <tr>
                     <td class="setting-name-cell">
                       <div class="font-weight-medium">Discord Notifications</div>
@@ -781,7 +867,7 @@
                     <td><StatusBadge :status="health?.status === 'ok' ? 'ok' : 'error'" :label="health?.status || 'unknown'" /></td>
                   </tr>
                   <tr>
-                    <td class="text-medium-emphasis">AI Efficiency Score</td>
+                    <td class="text-medium-emphasis">AI Matching Efficiency Score</td>
                     <td>
                       <span
                         class="font-weight-medium"
@@ -982,6 +1068,14 @@ const discordNotificationsEnabled = ref(false);
 const discordWebhookUrl = ref("");
 const initialDiscordNotificationsEnabled = ref(false);
 const initialDiscordWebhookUrl = ref("");
+const actionOnNewPatterns = ref(false);
+const notifyOnNewPatterns = ref(false);
+const actionOnNoLogs = ref(false);
+const notifyOnNoLogs = ref(false);
+const initialActionOnNewPatterns = ref(false);
+const initialNotifyOnNewPatterns = ref(false);
+const initialActionOnNoLogs = ref(false);
+const initialNotifyOnNoLogs = ref(false);
 const showDiscordWebhook = ref(false);
 const notificationsPendingSave = ref(false);
 let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
@@ -994,7 +1088,13 @@ const patternsMessage = ref("");
 const patternsSuccess = ref(false);
 const patternIdSearch = ref("");
 const patternRegexSearchSnapshot = ref<Record<number, string>>({});
-const patternSeverityOptions = ["critical", "high", "medium", "low", "noise"];
+const patternSeverityOptions = [
+  { title: "Critical", value: "critical" },
+  { title: "High", value: "high" },
+  { title: "Medium", value: "medium" },
+  { title: "Low", value: "low" },
+  { title: "Noise", value: "noise" },
+];
 const savingPatternId = ref<number | null>(null);
 const deletingPatternId = ref<number | null>(null);
 
@@ -1052,7 +1152,11 @@ const getEditableSetting = (key: string, fallback = "") => {
 const notificationsDirty = computed(
   () =>
     discordNotificationsEnabled.value !== initialDiscordNotificationsEnabled.value
-    || normalizeSettingValue(discordWebhookUrl.value) !== initialDiscordWebhookUrl.value,
+    || normalizeSettingValue(discordWebhookUrl.value) !== initialDiscordWebhookUrl.value
+    || actionOnNewPatterns.value !== initialActionOnNewPatterns.value
+    || notifyOnNewPatterns.value !== initialNotifyOnNewPatterns.value
+    || actionOnNoLogs.value !== initialActionOnNoLogs.value
+    || notifyOnNoLogs.value !== initialNotifyOnNoLogs.value,
 );
 
 const fetchNotificationsSettings = async () => {
@@ -1061,11 +1165,23 @@ const fetchNotificationsSettings = async () => {
   try {
     const loadedEnabled = parseBoolSetting(getEditableSetting("discord_notifications_enabled", "false"));
     const loadedWebhook = getEditableSetting("discord_webhook_url", "");
+    const loadedActionOnNewPatterns = parseBoolSetting(getEditableSetting("action_on_new_patterns", "false"));
+    const loadedNotifyOnNewPatterns = parseBoolSetting(getEditableSetting("notify_on_new_patterns", "false"));
+    const loadedActionOnNoLogs = parseBoolSetting(getEditableSetting("action_on_no_logs", "false"));
+    const loadedNotifyOnNoLogs = parseBoolSetting(getEditableSetting("notify_on_no_logs", "false"));
 
     discordNotificationsEnabled.value = loadedEnabled;
     discordWebhookUrl.value = loadedWebhook;
     initialDiscordNotificationsEnabled.value = loadedEnabled;
     initialDiscordWebhookUrl.value = loadedWebhook;
+    actionOnNewPatterns.value = loadedActionOnNewPatterns;
+    notifyOnNewPatterns.value = loadedNotifyOnNewPatterns;
+    actionOnNoLogs.value = loadedActionOnNoLogs;
+    notifyOnNoLogs.value = loadedNotifyOnNoLogs;
+    initialActionOnNewPatterns.value = loadedActionOnNewPatterns;
+    initialNotifyOnNewPatterns.value = loadedNotifyOnNewPatterns;
+    initialActionOnNoLogs.value = loadedActionOnNoLogs;
+    initialNotifyOnNoLogs.value = loadedNotifyOnNoLogs;
   } catch {
     notificationsMessage.value = "Failed to load notification settings.";
     notificationsSuccess.value = false;
@@ -1093,6 +1209,18 @@ const saveNotificationsSettings = async () => {
     if (normalizedWebhook !== initialDiscordWebhookUrl.value) {
       updates.push(updateSetting("discord_webhook_url", normalizedWebhook));
     }
+    if (actionOnNewPatterns.value !== initialActionOnNewPatterns.value) {
+      updates.push(updateSetting("action_on_new_patterns", actionOnNewPatterns.value));
+    }
+    if (notifyOnNewPatterns.value !== initialNotifyOnNewPatterns.value) {
+      updates.push(updateSetting("notify_on_new_patterns", notifyOnNewPatterns.value));
+    }
+    if (actionOnNoLogs.value !== initialActionOnNoLogs.value) {
+      updates.push(updateSetting("action_on_no_logs", actionOnNoLogs.value));
+    }
+    if (notifyOnNoLogs.value !== initialNotifyOnNoLogs.value) {
+      updates.push(updateSetting("notify_on_no_logs", notifyOnNoLogs.value));
+    }
 
     if (updates.length === 0) return;
 
@@ -1101,6 +1229,10 @@ const saveNotificationsSettings = async () => {
     discordWebhookUrl.value = normalizedWebhook;
     initialDiscordNotificationsEnabled.value = discordNotificationsEnabled.value;
     initialDiscordWebhookUrl.value = normalizedWebhook;
+    initialActionOnNewPatterns.value = actionOnNewPatterns.value;
+    initialNotifyOnNewPatterns.value = notifyOnNewPatterns.value;
+    initialActionOnNoLogs.value = actionOnNoLogs.value;
+    initialNotifyOnNoLogs.value = notifyOnNoLogs.value;
     notificationsMessage.value = "Notification settings auto-saved.";
     notificationsSuccess.value = true;
   } catch {
@@ -1134,7 +1266,7 @@ const flushNotificationsAutoSave = () => {
   void saveNotificationsSettings();
 };
 
-watch([discordNotificationsEnabled, discordWebhookUrl], () => {
+watch([discordNotificationsEnabled, discordWebhookUrl, actionOnNewPatterns, notifyOnNewPatterns, actionOnNoLogs, notifyOnNoLogs], () => {
   if (notificationsLoading.value) return;
   if (!notificationsDirty.value) return;
   notificationsPendingSave.value = true;
