@@ -518,6 +518,7 @@
                   <tr>
                     <th class="text-left">ID</th>
                     <th class="text-left">Name</th>
+                    <th class="text-left">Last Seen</th>
                     <th class="text-left pattern-severity-col">Severity</th>
                     <th class="text-left">Regular Expression</th>
                     <th class="text-left pattern-actions-col">Actions</th>
@@ -538,9 +539,12 @@
                         :disabled="savingPatternId === pattern.id || deletingPatternId === pattern.id"
                       />
                     </td>
+                    <td :style="{ opacity: pattern.last_seen_at ? 1 : 0.5 }">
+                      {{ pattern.last_seen_at ? new Date(pattern.last_seen_at).toISOString().substring(0, 10) : "Never" }}
+                    </td>
                     <td>
                       <v-select
-                        v-model="pattern.classification"
+                        v-model="pattern.user_override"
                         class="pattern-severity-input"
                         :items="patternSeverityOptions"
                         variant="outlined"
@@ -935,7 +939,7 @@ import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSettings, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns, getPatterns, updatePattern, deletePattern } from "@/services/rules";
+import { deleteAllPatterns, getPatterns, updatePattern, deletePattern, getPatternStats } from "@/services/rules";
 import type { HealthStatus, StatsData, PatternItem } from "@/types";
 import type { EditableSetting } from "@/services/system";
 import StatusBadge from "@/components/StatusBadge.vue";
@@ -984,12 +988,13 @@ let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Patterns tab state
 const allPatterns = ref<PatternItem[]>([]);
+const patternStats = ref<Record<string, { hour: string; count: number }[]>>({});
 const loadingPatterns = ref(false);
 const patternsMessage = ref("");
 const patternsSuccess = ref(false);
 const patternIdSearch = ref("");
 const patternRegexSearchSnapshot = ref<Record<number, string>>({});
-const patternSeverityOptions = ["critical", "warning", "info", "debug", "noise"];
+const patternSeverityOptions = ["critical", "high", "medium", "low", "noise"];
 const savingPatternId = ref<number | null>(null);
 const deletingPatternId = ref<number | null>(null);
 
@@ -1032,6 +1037,11 @@ const parseBoolSetting = (value: string) => {
 };
 
 const normalizeSettingValue = (value: string) => value.trim();
+
+const get12hCount = (patternId: number) => {
+  const intervals = patternStats.value[String(patternId)] || [];
+  return intervals.reduce((sum, i) => sum + i.count, 0);
+};
 
 const getEditableSetting = (key: string, fallback = "") => {
   const setting = editableSettingsByKey.value.get(key);
@@ -1742,8 +1752,12 @@ const loadAllPatterns = async () => {
   loadingPatterns.value = true;
   patternsMessage.value = "";
   try {
-    const response = await getPatterns({ limit: 10000 });
-    allPatterns.value = response.items || [];
+    const [patternsResponse, statsResponse] = await Promise.all([
+      getPatterns({ limit: 10000 }),
+      getPatternStats(12),
+    ]);
+    allPatterns.value = patternsResponse.items || [];
+    patternStats.value = statsResponse || {};
     patternRegexSearchSnapshot.value = Object.fromEntries(
       allPatterns.value.map((pattern) => [pattern.id, (pattern.match_regex || "").toLowerCase()]),
     );
@@ -1764,7 +1778,7 @@ const savePatternRow = async (pattern: PatternItem) => {
     await updatePattern(pattern.id, {
       title: pattern.title || "",
       match_regex: pattern.match_regex || "",
-      classification: pattern.classification || "info",
+      classification: pattern.user_override || "",
     });
 
     patternsSuccess.value = true;
