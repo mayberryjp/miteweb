@@ -63,6 +63,31 @@
 
         <tr>
           <td class="setting-name-cell">
+            <div class="font-weight-medium">Log AI Requests</div>
+          </td>
+          <td class="align-top">
+            <div class="setting-row-flex">
+              <v-switch
+                v-model="logAiRequests"
+                color="primary"
+                :loading="loading || saving"
+                :disabled="loading || saving"
+                hide-details
+                density="compact"
+                @update:model-value="flushAutoSave"
+              />
+            </div>
+            <div class="setting-meta">
+              <div class="setting-details">
+                When enabled, the backend logs the full AI request and response payloads for debugging and auditing.
+              </div>
+              <div class="setting-default">Default: <span>off</span></div>
+            </div>
+          </td>
+        </tr>
+
+        <tr>
+          <td class="setting-name-cell">
             <div class="font-weight-medium">Minimum Message Length</div>
           </td>
           <td class="align-top">
@@ -215,6 +240,7 @@ const aiApiDailyRateLimitSettingKey = "ai_api_daily_rate_limit";
 const aiSamplePreprocessingStringsSettingKey = "ai_custom_tokens";
 const writeApplicationLogSettingKey = "write_application_log";
 const writeSyslogLogSettingKey = "write_syslog_log";
+const logAiRequestsSettingKey = "log_ai_requests";
 type ReplacementRule = {
   source: string;
   replacement: string;
@@ -226,11 +252,13 @@ const aiSampleReplacementSourceDraft = ref("");
 const aiSampleReplacementValueDraft = ref("");
 const writeApplicationLog = ref(false);
 const writeSyslogLog = ref(false);
+const logAiRequests = ref(false);
 const initialMinMessageLength = ref("0");
 const initialAiApiDailyRateLimit = ref("1");
 const initialAiSamplePreprocessingStringsSerialized = ref("");
 const initialWriteApplicationLog = ref(false);
 const initialWriteSyslogLog = ref(false);
+const initialLogAiRequests = ref(false);
 const loading = ref(true);
 const saving = ref(false);
 const message = ref("");
@@ -286,7 +314,8 @@ const isDirty = computed(
     || aiApiDailyRateLimit.value !== initialAiApiDailyRateLimit.value
     || aiSamplePreprocessingStringsSerialized.value !== initialAiSamplePreprocessingStringsSerialized.value
     || writeApplicationLog.value !== initialWriteApplicationLog.value
-    || writeSyslogLog.value !== initialWriteSyslogLog.value,
+    || writeSyslogLog.value !== initialWriteSyslogLog.value
+    || logAiRequests.value !== initialLogAiRequests.value,
 );
 
 const normalizeMinMessageLength = (value: string) =>
@@ -306,17 +335,20 @@ const applySettings = () => {
     const loadedAiSamplePreprocessingStringsSerialized = JSON.stringify(serializeReplacementRules(loadedAiSampleReplacementRules));
     const loadedWriteApplicationLog = getSettingValue(writeApplicationLogSettingKey, "false") === "true";
     const loadedWriteSyslogLog = getSettingValue(writeSyslogLogSettingKey, "false") === "true";
+    const loadedLogAiRequests = getSettingValue(logAiRequestsSettingKey, "false") === "true";
 
     minMessageLength.value = loadedMinMessageLength;
     aiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
     aiSampleReplacementRules.value = loadedAiSampleReplacementRules;
     writeApplicationLog.value = loadedWriteApplicationLog;
     writeSyslogLog.value = loadedWriteSyslogLog;
+    logAiRequests.value = loadedLogAiRequests;
     initialMinMessageLength.value = loadedMinMessageLength;
     initialAiApiDailyRateLimit.value = loadedAiApiDailyRateLimit;
     initialAiSamplePreprocessingStringsSerialized.value = loadedAiSamplePreprocessingStringsSerialized;
     initialWriteApplicationLog.value = loadedWriteApplicationLog;
     initialWriteSyslogLog.value = loadedWriteSyslogLog;
+    initialLogAiRequests.value = loadedLogAiRequests;
   } catch {
     message.value = "Failed to load general settings.";
     success.value = false;
@@ -357,6 +389,9 @@ const saveSetting = async () => {
     if (writeSyslogLog.value !== initialWriteSyslogLog.value) {
       updates.push(updateSetting(writeSyslogLogSettingKey, String(writeSyslogLog.value)));
     }
+    if (logAiRequests.value !== initialLogAiRequests.value) {
+      updates.push(updateSetting(logAiRequestsSettingKey, String(logAiRequests.value)));
+    }
 
     if (updates.length === 0) return;
 
@@ -369,6 +404,7 @@ const saveSetting = async () => {
     initialAiSamplePreprocessingStringsSerialized.value = normalizedAiSamplePreprocessingStringsSerialized;
     initialWriteApplicationLog.value = writeApplicationLog.value;
     initialWriteSyslogLog.value = writeSyslogLog.value;
+    initialLogAiRequests.value = logAiRequests.value;
     message.value = "General settings auto-saved.";
     success.value = true;
   } catch {
@@ -451,6 +487,13 @@ watch(writeApplicationLog, () => {
 });
 
 watch(writeSyslogLog, () => {
+  if (loading.value) return;
+  if (!isDirty.value) return;
+  pendingAutoSave.value = true;
+  scheduleAutoSave();
+});
+
+watch(logAiRequests, () => {
   if (loading.value) return;
   if (!isDirty.value) return;
   pendingAutoSave.value = true;
