@@ -118,6 +118,7 @@ const filteredPatterns = computed(() => {
   return base.filter(
     (p) =>
       String(p.id).includes(q) ||
+      (p.title || "").toLowerCase().includes(q) ||
       p.pattern_text.toLowerCase().includes(q) ||
       (p.host || "").toLowerCase().includes(q) ||
       (p.program || "").toLowerCase().includes(q)
