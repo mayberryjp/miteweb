@@ -85,7 +85,7 @@ const { lgAndUp } = useDisplay();
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: "mdi-view-dashboard" },
-  { to: "/logs", label: "Live Logs", icon: "mdi-file-document-outline" },
+  { to: "/logs", label: "Logs", icon: "mdi-file-document-outline" },
   { to: "https://github.com/mayberryjp/mite", label: "Documentation", icon: "mdi-book-open-variant", external: true },
   { to: "/settings", label: "Settings", icon: "mdi-cog" },
   { to: "https://github.com/mayberryjp/mite/issues", label: "Requests & Roadmap", icon: "mdi-map-marker-path", external: true },
