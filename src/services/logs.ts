@@ -38,3 +38,8 @@ export const deleteAllLogs = async () => {
   const response = await api.delete<{ status: string; deleted: number }>("/logs");
   return response.data;
 };
+
+export const deleteNoiseLogs = async () => {
+  const response = await api.post<{ status: string; deleted: number }>("/logs/cleanup-noise");
+  return response.data;
+};

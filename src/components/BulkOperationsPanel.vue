@@ -44,6 +44,22 @@
       Deletes patterns with no matching logs seen in the selected number of days.
     </p>
 
+    <div class="mt-6">
+      <v-btn
+        color="error"
+        variant="elevated"
+        prepend-icon="mdi-delete-alert"
+        :loading="deletingNoiseLogs"
+        @click="handleDeleteNoiseLogs"
+      >
+        DELETE NOISE LOGS
+      </v-btn>
+    </div>
+
+    <p class="text-body-2 mt-3">
+      Deletes all logs classified as noise.
+    </p>
+
     <v-alert
       v-if="message"
       :type="success ? 'success' : 'error'"
@@ -60,9 +76,11 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { deletePatternsNotSeenInDays, moveAllLowToNoise } from "@/services/rules";
+import { deleteNoiseLogs } from "@/services/logs";
 
 const movingLowToNoise = ref(false);
 const deletingOldPatterns = ref(false);
+const deletingNoiseLogs = ref(false);
 const message = ref("");
 const success = ref(false);
 const deleteOldDayOptions = [7, 15, 30, 60, 90, 180];
@@ -95,6 +113,21 @@ const handleDeleteOldPatterns = async () => {
     success.value = false;
   } finally {
     deletingOldPatterns.value = false;
+  }
+};
+
+const handleDeleteNoiseLogs = async () => {
+  deletingNoiseLogs.value = true;
+  message.value = "";
+  try {
+    const result = await deleteNoiseLogs();
+    message.value = `Deleted ${result.deleted.toLocaleString()} logs classified as noise.`;
+    success.value = true;
+  } catch {
+    message.value = "Failed to delete noise logs. Please try again.";
+    success.value = false;
+  } finally {
+    deletingNoiseLogs.value = false;
   }
 };
 </script>
