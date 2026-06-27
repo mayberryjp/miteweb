@@ -263,6 +263,76 @@
                       </div>
                     </td>
                   </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Enable Syslog Forwarding</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="syslogForwardEnabled"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="processingLoading || processingSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Forward processed syslog messages to a remote syslog destination over UDP.</div>
+                        <div class="setting-default">Default: <span>off</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Syslog Forward Destination</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-text-field
+                          v-model="syslogForwardDestination"
+                          variant="outlined"
+                          density="compact"
+                          @blur="flushProcessingAutoSave"
+                          :disabled="processingLoading || processingSaving"
+                          hide-details
+                          placeholder="host:port"
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Destination in host:port format. Forwarding only runs when enabled and this value is set.</div>
+                        <div class="setting-default">Default: <span>empty</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Minimum Forward Classification</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-select
+                          v-model="syslogForwardMinClassification"
+                          :items="syslogForwardClassificationOptions"
+                          item-title="title"
+                          item-value="value"
+                          variant="outlined"
+                          density="compact"
+                          hide-details
+                          :disabled="processingLoading || processingSaving"
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Forward only logs at or above this effective classification level: noise, low, medium, high, critical.</div>
+                        <div class="setting-default">Default: <span>low</span></div>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </v-table>
 
@@ -1305,14 +1375,35 @@ const processorIntervalSeconds = ref("");
 const processorFetchLimit = ref("");
 const retentionCheckIntervalSeconds = ref("");
 const regexCacheTtlSeconds = ref("");
+const syslogForwardEnabled = ref(false);
+const syslogForwardDestination = ref("");
+const syslogForwardMinClassification = ref("low");
 const initialAiDiscoveryIntervalSeconds = ref("");
 const initialAiBatchSize = ref("");
 const initialProcessorIntervalSeconds = ref("");
 const initialProcessorFetchLimit = ref("");
 const initialRetentionCheckIntervalSeconds = ref("");
 const initialRegexCacheTtlSeconds = ref("");
+const initialSyslogForwardEnabled = ref(false);
+const initialSyslogForwardDestination = ref("");
+const initialSyslogForwardMinClassification = ref("low");
 const processingPendingSave = ref(false);
 let processingAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+const syslogForwardClassificationOptions = [
+  { title: "Noise", value: "noise" },
+  { title: "Low", value: "low" },
+  { title: "Medium", value: "medium" },
+  { title: "High", value: "high" },
+  { title: "Critical", value: "critical" },
+];
+
+const normalizeSyslogForwardClassification = (value: string) => {
+  const normalized = normalizeSettingValue(value).toLowerCase();
+  return syslogForwardClassificationOptions.some((option) => option.value === normalized)
+    ? normalized
+    : "low";
+};
 
 const processingDirty = computed(
   () =>
@@ -1321,7 +1412,10 @@ const processingDirty = computed(
     || normalizeSettingValue(processorIntervalSeconds.value) !== initialProcessorIntervalSeconds.value
     || normalizeSettingValue(processorFetchLimit.value) !== initialProcessorFetchLimit.value
     || normalizeSettingValue(retentionCheckIntervalSeconds.value) !== initialRetentionCheckIntervalSeconds.value
-    || normalizeSettingValue(regexCacheTtlSeconds.value) !== initialRegexCacheTtlSeconds.value,
+    || normalizeSettingValue(regexCacheTtlSeconds.value) !== initialRegexCacheTtlSeconds.value
+    || syslogForwardEnabled.value !== initialSyslogForwardEnabled.value
+    || normalizeSettingValue(syslogForwardDestination.value) !== initialSyslogForwardDestination.value
+    || normalizeSyslogForwardClassification(syslogForwardMinClassification.value) !== initialSyslogForwardMinClassification.value,
 );
 
 const fetchProcessingSettings = async () => {
@@ -1334,6 +1428,11 @@ const fetchProcessingSettings = async () => {
     const loadedProcessorFetchLimit = getEditableSetting("processor_fetch_limit", "");
     const loadedRetentionCheckIntervalSeconds = getEditableSetting("retention_check_interval_seconds", "");
     const loadedRegexCacheTtlSeconds = getEditableSetting("regex_cache_ttl_seconds", "");
+    const loadedSyslogForwardEnabled = parseBoolSetting(getEditableSetting("syslog_forward_enabled", "false"));
+    const loadedSyslogForwardDestination = getEditableSetting("syslog_forward_destination", "");
+    const loadedSyslogForwardMinClassification = normalizeSyslogForwardClassification(
+      getEditableSetting("syslog_forward_min_classification", "low"),
+    );
 
     aiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
     aiBatchSize.value = loadedAiBatchSize;
@@ -1341,6 +1440,9 @@ const fetchProcessingSettings = async () => {
     processorFetchLimit.value = loadedProcessorFetchLimit;
     retentionCheckIntervalSeconds.value = loadedRetentionCheckIntervalSeconds;
     regexCacheTtlSeconds.value = loadedRegexCacheTtlSeconds;
+    syslogForwardEnabled.value = loadedSyslogForwardEnabled;
+    syslogForwardDestination.value = loadedSyslogForwardDestination;
+    syslogForwardMinClassification.value = loadedSyslogForwardMinClassification;
 
     initialAiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
     initialAiBatchSize.value = loadedAiBatchSize;
@@ -1348,6 +1450,9 @@ const fetchProcessingSettings = async () => {
     initialProcessorFetchLimit.value = loadedProcessorFetchLimit;
     initialRetentionCheckIntervalSeconds.value = loadedRetentionCheckIntervalSeconds;
     initialRegexCacheTtlSeconds.value = loadedRegexCacheTtlSeconds;
+    initialSyslogForwardEnabled.value = loadedSyslogForwardEnabled;
+    initialSyslogForwardDestination.value = loadedSyslogForwardDestination;
+    initialSyslogForwardMinClassification.value = loadedSyslogForwardMinClassification;
   } catch {
     processingMessage.value = "Failed to load processing settings.";
     processingSuccess.value = false;
@@ -1372,6 +1477,8 @@ const saveProcessingSettings = async () => {
     const normalizedProcessorFetchLimit = normalizeSettingValue(processorFetchLimit.value);
     const normalizedRetentionCheckIntervalSeconds = normalizeSettingValue(retentionCheckIntervalSeconds.value);
     const normalizedRegexCacheTtlSeconds = normalizeSettingValue(regexCacheTtlSeconds.value);
+    const normalizedSyslogForwardDestination = normalizeSettingValue(syslogForwardDestination.value);
+    const normalizedSyslogForwardMinClassification = normalizeSyslogForwardClassification(syslogForwardMinClassification.value);
 
     const updates: Promise<void>[] = [];
     if (normalizedAiDiscoveryIntervalSeconds !== initialAiDiscoveryIntervalSeconds.value) {
@@ -1392,6 +1499,15 @@ const saveProcessingSettings = async () => {
     if (normalizedRegexCacheTtlSeconds !== initialRegexCacheTtlSeconds.value) {
       updates.push(updateSetting("regex_cache_ttl_seconds", normalizedRegexCacheTtlSeconds));
     }
+    if (syslogForwardEnabled.value !== initialSyslogForwardEnabled.value) {
+      updates.push(updateSetting("syslog_forward_enabled", syslogForwardEnabled.value));
+    }
+    if (normalizedSyslogForwardDestination !== initialSyslogForwardDestination.value) {
+      updates.push(updateSetting("syslog_forward_destination", normalizedSyslogForwardDestination));
+    }
+    if (normalizedSyslogForwardMinClassification !== initialSyslogForwardMinClassification.value) {
+      updates.push(updateSetting("syslog_forward_min_classification", normalizedSyslogForwardMinClassification));
+    }
 
     if (updates.length === 0) return;
 
@@ -1403,6 +1519,8 @@ const saveProcessingSettings = async () => {
     processorFetchLimit.value = normalizedProcessorFetchLimit;
     retentionCheckIntervalSeconds.value = normalizedRetentionCheckIntervalSeconds;
     regexCacheTtlSeconds.value = normalizedRegexCacheTtlSeconds;
+    syslogForwardDestination.value = normalizedSyslogForwardDestination;
+    syslogForwardMinClassification.value = normalizedSyslogForwardMinClassification;
 
     initialAiDiscoveryIntervalSeconds.value = normalizedAiDiscoveryIntervalSeconds;
     initialAiBatchSize.value = normalizedAiBatchSize;
@@ -1410,6 +1528,9 @@ const saveProcessingSettings = async () => {
     initialProcessorFetchLimit.value = normalizedProcessorFetchLimit;
     initialRetentionCheckIntervalSeconds.value = normalizedRetentionCheckIntervalSeconds;
     initialRegexCacheTtlSeconds.value = normalizedRegexCacheTtlSeconds;
+    initialSyslogForwardEnabled.value = syslogForwardEnabled.value;
+    initialSyslogForwardDestination.value = normalizedSyslogForwardDestination;
+    initialSyslogForwardMinClassification.value = normalizedSyslogForwardMinClassification;
     processingMessage.value = "Processing settings auto-saved.";
     processingSuccess.value = true;
   } catch {
@@ -1443,7 +1564,17 @@ const flushProcessingAutoSave = () => {
   void saveProcessingSettings();
 };
 
-watch([aiDiscoveryIntervalSeconds, aiBatchSize, processorIntervalSeconds, processorFetchLimit, retentionCheckIntervalSeconds, regexCacheTtlSeconds], () => {
+watch([
+  aiDiscoveryIntervalSeconds,
+  aiBatchSize,
+  processorIntervalSeconds,
+  processorFetchLimit,
+  retentionCheckIntervalSeconds,
+  regexCacheTtlSeconds,
+  syslogForwardEnabled,
+  syslogForwardDestination,
+  syslogForwardMinClassification,
+], () => {
   if (processingLoading.value) return;
   if (!processingDirty.value) return;
   processingPendingSave.value = true;
