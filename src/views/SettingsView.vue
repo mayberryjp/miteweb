@@ -1056,7 +1056,7 @@ import PatternHitCountMonitor from "@/components/PatternHitCountMonitor.vue";
 
 const { lgAndUp } = useDisplay();
 
-const activeTab = ref("general");
+const activeTab = ref("health");
 const appVersion = __APP_VERSION__;
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
