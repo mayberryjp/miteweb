@@ -483,6 +483,27 @@
                       </div>
                     </td>
                   </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Save Noise Logs</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="saveNoiseLogs"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="retentionLoading || retentionSaving"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Persist logs tied to noise-classified patterns instead of deleting them. When disabled, logs matching noise patterns are discarded to keep the database lean.</div>
+                        <div class="setting-default">Default: <span>on</span></div>
+                      </div>
+                    </td>
+                  </tr>
                 </tbody>
               </v-table>
 
@@ -1580,15 +1601,18 @@ const retentionMessage = ref("");
 const retentionSuccess = ref(false);
 const logRetentionDays = ref("");
 const alertRetentionDays = ref("");
+const saveNoiseLogs = ref(false);
 const initialLogRetentionDays = ref("");
 const initialAlertRetentionDays = ref("");
+const initialSaveNoiseLogs = ref(false);
 const retentionPendingSave = ref(false);
 let retentionAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const retentionDirty = computed(
   () =>
     normalizeSettingValue(logRetentionDays.value) !== initialLogRetentionDays.value
-    || normalizeSettingValue(alertRetentionDays.value) !== initialAlertRetentionDays.value,
+    || normalizeSettingValue(alertRetentionDays.value) !== initialAlertRetentionDays.value
+    || saveNoiseLogs.value !== initialSaveNoiseLogs.value,
 );
 
 const fetchRetentionSettings = async () => {
@@ -1597,11 +1621,14 @@ const fetchRetentionSettings = async () => {
   try {
     const loadedLogRetentionDays = getEditableSetting("log_retention_days", "");
     const loadedAlertRetentionDays = getEditableSetting("alert_retention_days", "");
+    const loadedSaveNoiseLogs = parseBoolSetting(getEditableSetting("save_noise_logs", "false"));
 
     logRetentionDays.value = loadedLogRetentionDays;
     alertRetentionDays.value = loadedAlertRetentionDays;
+    saveNoiseLogs.value = loadedSaveNoiseLogs;
     initialLogRetentionDays.value = loadedLogRetentionDays;
     initialAlertRetentionDays.value = loadedAlertRetentionDays;
+    initialSaveNoiseLogs.value = loadedSaveNoiseLogs;
   } catch {
     retentionMessage.value = "Failed to load retention settings.";
     retentionSuccess.value = false;
@@ -1630,6 +1657,9 @@ const saveRetentionSettings = async () => {
     if (normalizedAlertRetentionDays !== initialAlertRetentionDays.value) {
       updates.push(updateSetting("alert_retention_days", normalizedAlertRetentionDays));
     }
+    if (saveNoiseLogs.value !== initialSaveNoiseLogs.value) {
+      updates.push(updateSetting("save_noise_logs", saveNoiseLogs.value));
+    }
 
     if (updates.length === 0) return;
 
@@ -1639,6 +1669,7 @@ const saveRetentionSettings = async () => {
     alertRetentionDays.value = normalizedAlertRetentionDays;
     initialLogRetentionDays.value = normalizedLogRetentionDays;
     initialAlertRetentionDays.value = normalizedAlertRetentionDays;
+    initialSaveNoiseLogs.value = saveNoiseLogs.value;
     retentionMessage.value = "Retention settings auto-saved.";
     retentionSuccess.value = true;
   } catch {
@@ -1672,7 +1703,7 @@ const flushRetentionAutoSave = () => {
   void saveRetentionSettings();
 };
 
-watch([logRetentionDays, alertRetentionDays], () => {
+watch([logRetentionDays, alertRetentionDays, saveNoiseLogs], () => {
   if (retentionLoading.value) return;
   if (!retentionDirty.value) return;
   retentionPendingSave.value = true;
