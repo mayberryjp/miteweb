@@ -1921,7 +1921,7 @@ const fetchPatternHitCountSum = async () => {
     ? saveNoiseLogsSetting
     : parseBoolSetting(String(saveNoiseLogsSetting));
 
-  const limit = 1000;
+  const limit = 10000;
   let offset = 0;
   let total = Number.POSITIVE_INFINITY;
   let sum = 0;
@@ -2055,7 +2055,10 @@ const loadAllPatterns = async () => {
       getPatterns({ limit: 10000 }),
       getPatternStats(12),
     ]);
-    allPatterns.value = patternsResponse.items || [];
+    allPatterns.value = (patternsResponse.items || []).map((pattern) => ({
+      ...pattern,
+      user_override: pattern.user_override || pattern.effective_classification || pattern.classification || "",
+    }));
     patternStats.value = statsResponse || {};
     patternRegexSearchSnapshot.value = Object.fromEntries(
       allPatterns.value.map((pattern) => [pattern.id, (pattern.match_regex || "").toLowerCase()]),

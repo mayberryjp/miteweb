@@ -129,7 +129,7 @@ const pollOnce = async () => {
   loading.value = true;
   error.value = "";
   try {
-    const response = await getPatterns({ limit: 1000, offset: 0 });
+    const response = await getPatterns({ limit: 10000, offset: 0 });
     buildChangedRows(response.items || []);
     lastPollAt.value = new Date();
   } catch {
