@@ -52,6 +52,7 @@ import { getPendingPatterns, triggerClassification } from "@/services/ai";
 import type { PendingPattern } from "@/types";
 import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import { formatLocaleDateTime } from "@/utils/datetime";
 
 const pending = ref<PendingPattern[]>([]);
 const error = ref("");
@@ -59,11 +60,7 @@ const classifying = ref(false);
 const classifyResult = ref<{ status: string; message?: string } | null>(null);
 
 const formatTime = (ts: string) => {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
+  return formatLocaleDateTime(ts);
 };
 
 const fetchPending = async () => {

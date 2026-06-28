@@ -58,6 +58,7 @@
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { getPatterns } from "@/services/rules";
 import type { PatternItem } from "@/types";
+import { formatLocaleDateTime } from "@/utils/datetime";
 
 type ChangedRow = {
   id: number;
@@ -88,12 +89,7 @@ const lastPollLabel = computed(() => {
 });
 
 const formatDateTime = (ts: string) => {
-  try {
-    const d = new Date(ts);
-    return d.toLocaleString();
-  } catch {
-    return ts;
-  }
+  return formatLocaleDateTime(ts);
 };
 
 const buildChangedRows = (patterns: PatternItem[]) => {

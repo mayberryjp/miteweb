@@ -101,6 +101,7 @@ import { getPatternsHourly } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import StatsChart from "@/components/StatsChart.vue";
+import { formatCompactDateTimeNoSeconds } from "@/utils/datetime";
 
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
@@ -169,29 +170,13 @@ const handleDeleteAlert = async (id: number) => {
 };
 
 const formatDateTime = (ts: string) => {
-  try {
-    const d = new Date(ts);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch { return ts; }
+  return formatCompactDateTimeNoSeconds(ts);
 };
 
 const filterRecentCriticalAlerts = (all: AlertItem[]) => {
   return all
     .filter((x) => (x.severity || "").toLowerCase() === "critical")
     .slice(0, alertsPerPage.value);
-};
-
-const isCurrentHourBucket = (hour: string) => {
-  const d = new Date(hour);
-  if (Number.isNaN(d.getTime())) return false;
-  const now = new Date();
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate() &&
-    d.getHours() === now.getHours()
-  );
 };
 
 const fetchData = async () => {

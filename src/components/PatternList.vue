@@ -76,6 +76,13 @@
 import { ref, computed, onMounted } from "vue";
 import type { PatternItem } from "@/types";
 import AlertBarChart from "@/components/AlertBarChart.vue";
+import {
+  CLASSIFICATION_LABELS,
+  CLASSIFICATION_ORDER,
+  getClassificationColor,
+  getClassificationIcon,
+  getPatternClassification,
+} from "@/utils/classification";
 
 const PATTERN_LAST_VISIT_STORAGE_KEY = "miteweb:patterns-last-visit-at";
 
@@ -86,7 +93,7 @@ const props = defineProps<{
 }>();
 
 defineEmits<{
-  (e: "select", pattern: PatternItem): void;
+  select: [pattern: PatternItem];
 }>();
 
 const searchTerm = ref("");
@@ -125,12 +132,6 @@ const filteredPatterns = computed(() => {
   );
 });
 
-const classificationOrder = ["critical", "high", "medium", "low", "noise", "pending"] as const;
-const classificationLabels: Record<string, string> = {
-  critical: "Critical", high: "High", medium: "Medium",
-  low: "Low", noise: "Noise", pending: "Pending",
-};
-
 const collapsedGroups = ref<Record<string, boolean>>({
   critical: false, high: false, medium: false,
   low: true, noise: true, pending: true,
@@ -144,18 +145,18 @@ const groupedPatterns = computed(() => {
   const groups: { classification: string; label: string; patterns: PatternItem[] }[] = [];
   const map = new Map<string, PatternItem[]>();
   for (const p of filteredPatterns.value) {
-    const cls = (p.effective_classification || p.classification || "pending").toLowerCase();
+    const cls = getPatternClassification(p);
     if (!map.has(cls)) map.set(cls, []);
     map.get(cls)!.push(p);
   }
-  for (const cls of classificationOrder) {
+  for (const cls of CLASSIFICATION_ORDER) {
     const items = map.get(cls);
     if (items && items.length) {
-      groups.push({ classification: cls, label: classificationLabels[cls] || cls, patterns: items });
+      groups.push({ classification: cls, label: CLASSIFICATION_LABELS[cls] || cls, patterns: items });
     }
   }
   for (const [cls, items] of map) {
-    if (!classificationOrder.includes(cls as any) && items.length) {
+    if (!CLASSIFICATION_ORDER.includes(cls as any) && items.length) {
       groups.push({ classification: cls, label: cls, patterns: items });
     }
   }
@@ -163,23 +164,11 @@ const groupedPatterns = computed(() => {
 });
 
 const classColor = (p: PatternItem): string => {
-  const cls = p.effective_classification || p.classification || "pending";
-  if (cls === "critical") return "#F5A623";
-  if (cls === "high") return "#1565C0";
-  if (cls === "medium") return "#2EC4A0";
-  if (cls === "low") return "#64B5F6";
-  if (cls === "noise") return "#5a7d7a";
-  return "#2196F3";
+  return getClassificationColor(p);
 };
 
 const classIconName = (p: PatternItem): string => {
-  const cls = p.effective_classification || p.classification || "pending";
-  if (cls === "critical") return "mdi-alert-octagon";
-  if (cls === "high") return "mdi-alert-circle";
-  if (cls === "medium") return "mdi-alert";
-  if (cls === "low") return "mdi-information";
-  if (cls === "noise") return "mdi-volume-off";
-  return "mdi-clock-outline";
+  return getClassificationIcon(p);
 };
 
 const patternLabel = (p: PatternItem) => {

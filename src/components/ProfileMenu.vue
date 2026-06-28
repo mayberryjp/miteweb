@@ -28,11 +28,16 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { useRouter } from "vue-router";
 import { useDisplay } from "vuetify";
 
-const router = useRouter();
 const { xs } = useDisplay();
 
-const profileMenuItems = ref([]);
+type ProfileMenuItem = {
+  title: string;
+  icon: string;
+  routeName?: string;
+  action?: () => void;
+};
+
+const profileMenuItems = ref<ProfileMenuItem[]>([]);
 </script>

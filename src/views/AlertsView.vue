@@ -83,6 +83,7 @@ import type { AlertItem } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import { formatLocaleDateTime } from "@/utils/datetime";
 
 const alerts = ref<AlertItem[]>([]);
 const total = ref(0);
@@ -91,11 +92,7 @@ const severityFilter = ref("");
 const expandedId = ref<number | null>(null);
 
 const formatTime = (ts: string) => {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
+  return formatLocaleDateTime(ts);
 };
 
 const fetchAlerts = async () => {

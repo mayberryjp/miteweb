@@ -1,10 +1,11 @@
 import type { RouteRecordRaw } from "vue-router";
 import AppLayout from "@/components/layout/AppLayout.vue";
-import MainLayout from "@/views/MainLayout.vue";
-import DashboardView from "@/views/DashboardView.vue";
-import LogsView from "@/views/LogsView.vue";
-import PatternDetailView from "@/views/PatternDetailView.vue";
-import SettingsView from "@/views/SettingsView.vue";
+
+const MainLayout = () => import("@/views/MainLayout.vue");
+const DashboardView = () => import("@/views/DashboardView.vue");
+const LogsView = () => import("@/views/LogsView.vue");
+const PatternDetailView = () => import("@/views/PatternDetailView.vue");
+const SettingsView = () => import("@/views/SettingsView.vue");
 
 const appRoutes: RouteRecordRaw[] = [
   {

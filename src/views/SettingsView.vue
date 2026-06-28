@@ -1229,11 +1229,6 @@ const parseBoolSetting = (value: string) => {
 
 const normalizeSettingValue = (value: string) => value.trim();
 
-const get12hCount = (patternId: number) => {
-  const intervals = patternStats.value[String(patternId)] || [];
-  return intervals.reduce((sum, i) => sum + i.count, 0);
-};
-
 const getEditableSetting = (key: string, fallback = "") => {
   const setting = editableSettingsByKey.value.get(key);
   const rawValue = setting?.value ?? setting?.default ?? fallback;

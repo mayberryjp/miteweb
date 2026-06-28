@@ -206,6 +206,7 @@ import { getPatterns } from "@/services/rules";
 import { getSettingValue } from "@/services/system";
 import type { LogItem } from "@/types";
 import LiveStatusIndicator from "@/components/LiveStatusIndicator.vue";
+import { formatCompactDateTime } from "@/utils/datetime";
 
 const mode = ref<"live" | "search">("live");
 const logs = ref<LogItem[]>([]);
@@ -251,18 +252,7 @@ const filteredLogs = computed(() => {
 });
 
 const formatTime = (ts: string) => {
-  try {
-    const date = new Date(ts);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    const hours = String(date.getHours()).padStart(2, "0");
-    const minutes = String(date.getMinutes()).padStart(2, "0");
-    const seconds = String(date.getSeconds()).padStart(2, "0");
-    return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
-  } catch {
-    return ts;
-  }
+  return formatCompactDateTime(ts);
 };
 
 const getDayLabel = (daysAgo: number) => {

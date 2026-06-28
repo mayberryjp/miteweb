@@ -148,6 +148,12 @@ import type { PatternItem } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import ApiErrorBanner from "@/components/ApiErrorBanner.vue";
 import EmptyState from "@/components/EmptyState.vue";
+import {
+  CLASSIFICATION_LABELS,
+  CLASSIFICATION_ORDER,
+  getPatternClassification,
+} from "@/utils/classification";
+import { formatLocaleDateTime } from "@/utils/datetime";
 
 const patterns = ref<PatternItem[]>([]);
 const total = ref(0);
@@ -157,16 +163,6 @@ const classificationFilter = ref("");
 const expandedId = ref<number | null>(null);
 const overrideValue = ref("");
 const saving = ref(false);
-
-const classificationOrder = ["critical", "high", "medium", "low", "noise", "pending"] as const;
-const classificationLabels: Record<string, string> = {
-  critical: "Critical",
-  high: "High",
-  medium: "Medium",
-  low: "Low",
-  noise: "Noise",
-  pending: "Pending",
-};
 
 const collapsedGroups = ref<Record<string, boolean>>({
   critical: false,
@@ -207,19 +203,19 @@ const groupedPatterns = computed(() => {
   const groups: { classification: string; label: string; patterns: PatternItem[] }[] = [];
   const map = new Map<string, PatternItem[]>();
   for (const p of filteredPatterns.value) {
-    const cls = p.effective_classification || p.classification || "pending";
+    const cls = getPatternClassification(p);
     if (!map.has(cls)) map.set(cls, []);
     map.get(cls)!.push(p);
   }
-  for (const cls of classificationOrder) {
+  for (const cls of CLASSIFICATION_ORDER) {
     const items = map.get(cls);
     if (items && items.length) {
-      groups.push({ classification: cls, label: classificationLabels[cls] || cls, patterns: items });
+      groups.push({ classification: cls, label: CLASSIFICATION_LABELS[cls] || cls, patterns: items });
     }
   }
   // Include any classifications not in the predefined order
   for (const [cls, items] of map) {
-    if (!classificationOrder.includes(cls as any) && items.length) {
+    if (!CLASSIFICATION_ORDER.includes(cls as any) && items.length) {
       groups.push({ classification: cls, label: cls, patterns: items });
     }
   }
@@ -252,11 +248,7 @@ const barClass = (p: PatternItem, n: number) => {
 };
 
 const formatTime = (ts: string) => {
-  try {
-    return new Date(ts).toLocaleString();
-  } catch {
-    return ts;
-  }
+  return formatLocaleDateTime(ts);
 };
 
 const toggleExpand = (p: PatternItem) => {

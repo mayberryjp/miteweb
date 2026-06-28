@@ -284,6 +284,8 @@ import { updatePattern, getPatternTimeSeries, getPatternLogs, deletePattern } fr
 import type { PatternItem, HourlyStat, LogItem } from "@/types";
 import StatsChart from "@/components/StatsChart.vue";
 import PatternStats from "@/components/PatternStats.vue";
+import { getClassificationColor, getClassificationIcon, getPatternClassification } from "@/utils/classification";
+import { formatCompactDateTimeNoSeconds } from "@/utils/datetime";
 
 const route = useRoute();
 const router = useRouter();
@@ -335,7 +337,7 @@ const pattern = computed(() =>
 );
 
 const isNoisePattern = computed(() => {
-  const cls = (pattern.value?.effective_classification || pattern.value?.classification || "").toLowerCase();
+  const cls = pattern.value ? getPatternClassification(pattern.value) : "";
   return cls === "noise";
 });
 
@@ -354,23 +356,11 @@ const patternLabel = (p: PatternItem) => {
 };
 
 const classColor = (p: PatternItem): string => {
-  const cls = (p.effective_classification || p.classification || "pending").toLowerCase();
-  if (cls === "critical") return "#F5A623";
-  if (cls === "high") return "#1565C0";
-  if (cls === "medium") return "#2EC4A0";
-  if (cls === "low") return "#64B5F6";
-  if (cls === "noise") return "#5a7d7a";
-  return "#2196F3";
+  return getClassificationColor(p);
 };
 
 const classIconName = (p: PatternItem): string => {
-  const cls = (p.effective_classification || p.classification || "pending").toLowerCase();
-  if (cls === "critical") return "mdi-alert-octagon";
-  if (cls === "high") return "mdi-alert-circle";
-  if (cls === "medium") return "mdi-alert";
-  if (cls === "low") return "mdi-information";
-  if (cls === "noise") return "mdi-volume-off";
-  return "mdi-clock-outline";
+  return getClassificationIcon(p);
 };
 
 const loadPatternData = async (id: number) => {
@@ -557,11 +547,7 @@ const handleDeletePattern = async () => {
 };
 
 const formatDateTime = (ts: string) => {
-  try {
-    const d = new Date(ts);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  } catch { return ts; }
+  return formatCompactDateTimeNoSeconds(ts);
 };
 
 onMounted(async () => {
