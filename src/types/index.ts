@@ -56,6 +56,7 @@ export interface PatternItem {
   first_seen_at: string;
   last_seen_at: string;
   effective_classification?: string;
+  filter_at_listener?: boolean;
 }
 
 export interface PendingPattern {

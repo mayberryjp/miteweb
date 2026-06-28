@@ -2,8 +2,8 @@
   <div class="pattern-details">
     <v-alert v-if="error" type="error" variant="tonal" closable class="mb-4">{{ error }}</v-alert>
 
-    <v-snackbar v-model="snackbar" :timeout="2000" color="success" location="top">
-      Classification updated
+    <v-snackbar v-model="snackbar" :timeout="2500" color="success" location="top">
+      {{ snackbarMessage }}
     </v-snackbar>
 
         <transition name="slide-up" mode="out-in">
@@ -91,6 +91,17 @@
                       >
                         <v-icon icon="mdi-delete" class="mr-2"></v-icon>
                         Delete Pattern
+                      </v-btn>
+                      <v-btn
+                        v-if="isNoisePattern"
+                        :color="isFilterAtListenerEnabled ? 'warning' : 'primary'"
+                        @click="requestToggleFilterAtListener"
+                        :loading="togglingFilterAtListener"
+                        density="comfortable"
+                        class="text-body-2"
+                      >
+                        <v-icon icon="mdi-filter-cog" class="mr-2"></v-icon>
+                        {{ filterAtListenerButtonLabel }}
                       </v-btn>
                     </v-btn-group>
                   </div>
@@ -231,6 +242,34 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
+
+    <v-dialog v-model="filterAtListenerDialog" max-width="620">
+      <v-card>
+        <v-card-title class="text-h6">Enable Filter At Listener</v-card-title>
+        <v-card-text>
+          <div class="mb-2 font-weight-medium">
+            The purpose of this rule is to remove high volume noise messages from future database storage. Use with caution.
+          </div>
+          <div class="mb-2">
+            This pattern will be dropped at the listener.
+            No logs matching this pattern will be written to the database.
+            This is irreversible per log and logs already in DB will remain.
+          </div>
+          <div>
+            Continue enabling listener-side filtering for this pattern?
+          </div>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn color="grey-darken-1" variant="text" @click="filterAtListenerDialog = false">
+            Cancel
+          </v-btn>
+          <v-btn color="warning" variant="text" :loading="togglingFilterAtListener" @click="confirmEnableFilterAtListener">
+            Enable
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -256,6 +295,7 @@ const saving = ref(false);
 const savingRegex = ref(false);
 const copyLabel = ref("Copy");
 const snackbar = ref(false);
+const snackbarMessage = ref("Classification updated");
 const regexExpanded = ref(false);
 const editingTitle = ref(false);
 const titleDraft = ref("");
@@ -265,6 +305,8 @@ const aiExplanationDraft = ref("");
 const savingAiExplanation = ref(false);
 const deletingPattern = ref(false);
 const deletePatternDialog = ref(false);
+const togglingFilterAtListener = ref(false);
+const filterAtListenerDialog = ref(false);
 
 const patternLogStats = ref<HourlyStat[]>([]);
 const patternAlertStats = ref<HourlyStat[]>([]);
@@ -286,6 +328,17 @@ const overrideOptions = [
 
 const pattern = computed(() =>
   patterns.value.find((p) => p.id === patternId.value) ?? null
+);
+
+const isNoisePattern = computed(() => {
+  const cls = (pattern.value?.effective_classification || pattern.value?.classification || "").toLowerCase();
+  return cls === "noise";
+});
+
+const isFilterAtListenerEnabled = computed(() => Boolean(pattern.value?.filter_at_listener));
+
+const filterAtListenerButtonLabel = computed(() =>
+  `Filter Out Pattern At Listener: ${isFilterAtListenerEnabled.value ? "Enabled" : "Disabled"}`
 );
 
 const patternLabel = (p: PatternItem) => {
@@ -430,10 +483,43 @@ const autoSaveClassification = async () => {
   saving.value = true;
   try {
     await updatePattern(patternId.value, { classification: overrideValue.value || undefined });
+    snackbarMessage.value = "Classification updated";
     snackbar.value = true;
     await refreshPatterns();
   } catch { error.value = "Failed to update pattern."; }
   finally { saving.value = false; }
+};
+
+const setFilterAtListener = async (enabled: boolean) => {
+  if (!pattern.value) return;
+  togglingFilterAtListener.value = true;
+  try {
+    await updatePattern(pattern.value.id, { filter_at_listener: enabled });
+    await refreshPatterns();
+    snackbarMessage.value = enabled
+      ? "Pattern will be dropped at listener"
+      : "Pattern listener filtering disabled";
+    snackbar.value = true;
+    if (enabled) filterAtListenerDialog.value = false;
+  } catch {
+    error.value = "Failed to update listener filter setting.";
+  } finally {
+    togglingFilterAtListener.value = false;
+  }
+};
+
+const requestToggleFilterAtListener = async () => {
+  if (!pattern.value) return;
+  if (!isNoisePattern.value) return;
+  if (isFilterAtListenerEnabled.value) {
+    await setFilterAtListener(false);
+    return;
+  }
+  filterAtListenerDialog.value = true;
+};
+
+const confirmEnableFilterAtListener = async () => {
+  await setFilterAtListener(true);
 };
 
 const copyRegex = async () => {

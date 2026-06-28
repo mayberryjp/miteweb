@@ -91,6 +91,38 @@ const toSeriesData = (stats: HourlyStat[]) => {
   return baseHours.value.map((hour) => byHour.get(hour) ?? null);
 };
 
+const rightAxisRange = computed(() => {
+  const values = [
+    ...props.alertStats.map((s) => s.count),
+    ...patternStats100.value.map((s) => s.count),
+  ].filter((v) => Number.isFinite(v));
+
+  if (!values.length) return { min: 0, max: 10 };
+
+  const maxVal = Math.max(...values);
+  const paddedMax = maxVal <= 10
+    ? 10
+    : Math.ceil(maxVal * 1.15);
+
+  return { min: 0, max: paddedMax };
+});
+
+const leftAxisRange = computed(() => {
+  const values = [
+    ...props.logStats.map((s) => s.count),
+    ...noiseStats.value.map((s) => s.count),
+  ].filter((v) => Number.isFinite(v));
+
+  if (!values.length) return { min: 0, max: 10 };
+
+  const maxVal = Math.max(...values);
+  const paddedMax = maxVal <= 10
+    ? 10
+    : Math.ceil(maxVal * 1.1);
+
+  return { min: 0, max: paddedMax };
+});
+
 const series = computed(() => [
   {
     name: "Logs",
@@ -101,7 +133,6 @@ const series = computed(() => [
     name: "Alerts",
     type: "bar",
     data: toSeriesData(props.alertStats),
-    yAxisIndex: 1,
   },
   {
     name: "Noise",
@@ -152,7 +183,11 @@ const chartOptions = computed(() => ({
   },
   yaxis: [
     {
-      title: { text: "Logs", style: { color: "#1E88E5" } },
+      title: { text: "Logs / Noise", style: { color: "#1E88E5" } },
+      min: leftAxisRange.value.min,
+      max: leftAxisRange.value.max,
+      tickAmount: 6,
+      forceNiceScale: true,
       labels: {
         style: { colors: "#b1b8c0" },
         formatter: (val: number) => Math.round(val).toLocaleString(),
@@ -160,7 +195,11 @@ const chartOptions = computed(() => ({
     },
     {
       opposite: true,
-      title: { text: "Alerts", style: { color: "#B71C1C" } },
+      title: { text: "Alerts / Patterns", style: { color: "#B71C1C" } },
+      min: rightAxisRange.value.min,
+      max: rightAxisRange.value.max,
+      tickAmount: 6,
+      forceNiceScale: true,
       labels: {
         style: { colors: "#b1b8c0" },
         formatter: (val: number) => Math.round(val).toLocaleString(),
@@ -168,11 +207,18 @@ const chartOptions = computed(() => ({
     },
     {
       show: false,
-      seriesName: "Noise",
+      min: leftAxisRange.value.min,
+      max: leftAxisRange.value.max,
+      tickAmount: 6,
+      forceNiceScale: true,
     },
     {
       show: false,
-      seriesName: "Patterns",
+      min: rightAxisRange.value.min,
+      max: rightAxisRange.value.max,
+      tickAmount: 6,
+      forceNiceScale: true,
+      opposite: true,
     },
   ],
   legend: {

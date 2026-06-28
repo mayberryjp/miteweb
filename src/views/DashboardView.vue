@@ -177,10 +177,8 @@ const formatDateTime = (ts: string) => {
 };
 
 const filterRecentCriticalAlerts = (all: AlertItem[]) => {
-  const cutoff = Date.now() - 12 * 60 * 60 * 1000;
   return all
     .filter((x) => (x.severity || "").toLowerCase() === "critical")
-    .filter((x) => new Date(x.created_at).getTime() >= cutoff)
     .slice(0, alertsPerPage.value);
 };
 
@@ -239,10 +237,10 @@ const fetchChartData = async () => {
       getLogsNoiseHourly(100),
       getPatternsHourly(100),
     ]);
-    hourlyLogs.value = logs.filter((s) => !isCurrentHourBucket(s.hour));
-    hourlyAlerts.value = alerts.filter((s) => !isCurrentHourBucket(s.hour));
-    hourlyNoise.value = noise.filter((s) => !isCurrentHourBucket(s.hour));
-    hourlyPatterns100.value = patterns100.filter((s) => !isCurrentHourBucket(s.hour));
+    hourlyLogs.value = logs;
+    hourlyAlerts.value = alerts;
+    hourlyNoise.value = noise;
+    hourlyPatterns100.value = patterns100;
   } catch {
     chartError.value = true;
   } finally {

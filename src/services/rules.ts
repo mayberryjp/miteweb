@@ -22,6 +22,7 @@ export const updatePattern = async (
     match_regex?: string;
     title?: string;
     ai_explanation?: string;
+    filter_at_listener?: boolean;
   }
 ) => {
   const response = await api.put(`/patterns/${id}`, data);
@@ -67,5 +68,10 @@ export const moveAllLowToNoise = async () => {
 
 export const deletePatternsNotSeenInDays = async (days: number) => {
   const response = await api.delete<{ status: string; deleted: number; days?: number }>(`/patterns/actions/delete-old/${days}`);
+  return response.data;
+};
+
+export const resetPatternHitCounts = async () => {
+  const response = await api.post<{ status: string; updated: number }>("/patterns/actions/reset-hit-counts");
   return response.data;
 };

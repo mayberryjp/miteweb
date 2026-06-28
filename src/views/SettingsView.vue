@@ -1113,7 +1113,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { useDisplay } from "vuetify";
-import { getHealth, getStats, testDiscord, getSettings, updateSetting, resetSetting } from "@/services/system";
+import { getHealth, getStats, testDiscord, getSettings, getSettingValue, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
 import { deleteAllPatterns, getPatterns, updatePattern, deletePattern, getPatternStats } from "@/services/rules";
@@ -1916,6 +1916,11 @@ const getAiEfficiencyScoreColor = (score: number) => {
 };
 
 const fetchPatternHitCountSum = async () => {
+  const saveNoiseLogsSetting = await getSettingValue<string | number | boolean>("save_noise_logs");
+  const includeNoise = typeof saveNoiseLogsSetting === "boolean"
+    ? saveNoiseLogsSetting
+    : parseBoolSetting(String(saveNoiseLogsSetting));
+
   const limit = 1000;
   let offset = 0;
   let total = Number.POSITIVE_INFINITY;
@@ -1924,7 +1929,7 @@ const fetchPatternHitCountSum = async () => {
   while (offset < total) {
     const response = await getPatterns({ limit, offset });
     sum += response.items
-      .filter((p) => (p.effective_classification ?? p.classification) !== "noise")
+      .filter((p) => includeNoise || (p.effective_classification ?? p.classification) !== "noise")
       .reduce((currentSum, pattern) => currentSum + (pattern.hit_count ?? 0), 0);
     total = response.total;
     offset += response.items.length;

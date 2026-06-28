@@ -46,6 +46,22 @@
 
     <div class="mt-6">
       <v-btn
+        color="warning"
+        variant="elevated"
+        prepend-icon="mdi-counter"
+        :loading="resettingPatternHitCounts"
+        @click="handleResetPatternHitCounts"
+      >
+        RESET PATTERN HIT COUNTS
+      </v-btn>
+    </div>
+
+    <p class="text-body-2 mt-3">
+      Resets hit counts to zero for all patterns.
+    </p>
+
+    <div class="mt-6">
+      <v-btn
         color="error"
         variant="elevated"
         prepend-icon="mdi-delete-alert"
@@ -59,6 +75,15 @@
     <p class="text-body-2 mt-3">
       Deletes all logs classified as noise.
     </p>
+
+    <v-alert
+      type="warning"
+      variant="tonal"
+      density="comfortable"
+      class="mt-3"
+    >
+      Warning: If <strong>Save Noise Logs</strong> is enabled, deleting noise logs can cause Pattern Hit Count Sum and log counts to mismatch.
+    </v-alert>
 
     <v-alert
       v-if="message"
@@ -75,11 +100,12 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { deletePatternsNotSeenInDays, moveAllLowToNoise } from "@/services/rules";
+import { deletePatternsNotSeenInDays, moveAllLowToNoise, resetPatternHitCounts } from "@/services/rules";
 import { deleteNoiseLogs } from "@/services/logs";
 
 const movingLowToNoise = ref(false);
 const deletingOldPatterns = ref(false);
+const resettingPatternHitCounts = ref(false);
 const deletingNoiseLogs = ref(false);
 const message = ref("");
 const success = ref(false);
@@ -128,6 +154,21 @@ const handleDeleteNoiseLogs = async () => {
     success.value = false;
   } finally {
     deletingNoiseLogs.value = false;
+  }
+};
+
+const handleResetPatternHitCounts = async () => {
+  resettingPatternHitCounts.value = true;
+  message.value = "";
+  try {
+    const result = await resetPatternHitCounts();
+    message.value = `Reset hit counts for ${result.updated.toLocaleString()} patterns.`;
+    success.value = true;
+  } catch {
+    message.value = "Failed to reset pattern hit counts. Please try again.";
+    success.value = false;
+  } finally {
+    resettingPatternHitCounts.value = false;
   }
 };
 </script>
