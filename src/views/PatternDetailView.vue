@@ -255,6 +255,10 @@
             No logs matching this pattern will be written to the database.
             This is irreversible per log and logs already in DB will remain.
           </div>
+          <div class="mb-2">
+            Note: tokenization of logs is not applied at the listener. Make sure the
+            regex does not include any tokenized values, and adjust it if it does.
+          </div>
           <div>
             Continue enabling listener-side filtering for this pattern?
           </div>
