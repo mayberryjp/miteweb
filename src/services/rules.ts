@@ -75,3 +75,8 @@ export const resetPatternHitCounts = async () => {
   const response = await api.post<{ status: string; updated: number }>("/patterns/actions/reset-hit-counts");
   return response.data;
 };
+
+export const exportPatterns = async () => {
+  const response = await api.post<{ status: string; filename: string; path: string; count: number }>("/patterns/export");
+  return response.data;
+};

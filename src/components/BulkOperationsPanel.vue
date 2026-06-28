@@ -5,9 +5,24 @@
     </p>
 
     <v-btn
+      color="info"
+      variant="elevated"
+      prepend-icon="mdi-download"
+      :loading="exportingPatterns"
+      @click="handleExportPatterns"
+    >
+      EXPORT PATTERNS
+    </v-btn>
+
+    <p class="text-body-2 mt-3">
+      Exports all patterns to a JSON file on the server.
+    </p>
+
+    <v-btn
       color="warning"
       variant="elevated"
       prepend-icon="mdi-swap-horizontal-bold"
+      class="mt-6"
       :loading="movingLowToNoise"
       @click="handleMoveAllLowToNoise"
     >
@@ -100,9 +115,10 @@
 
 <script setup lang="ts">
 import { ref } from "vue";
-import { deletePatternsNotSeenInDays, moveAllLowToNoise, resetPatternHitCounts } from "@/services/rules";
+import { deletePatternsNotSeenInDays, exportPatterns, moveAllLowToNoise, resetPatternHitCounts } from "@/services/rules";
 import { deleteNoiseLogs } from "@/services/logs";
 
+const exportingPatterns = ref(false);
 const movingLowToNoise = ref(false);
 const deletingOldPatterns = ref(false);
 const resettingPatternHitCounts = ref(false);
@@ -111,6 +127,21 @@ const message = ref("");
 const success = ref(false);
 const deleteOldDayOptions = [7, 15, 30, 60, 90, 180];
 const deleteOldDays = ref(30);
+
+const handleExportPatterns = async () => {
+  exportingPatterns.value = true;
+  message.value = "";
+  try {
+    const result = await exportPatterns();
+    message.value = `Exported ${result.count.toLocaleString()} patterns to ${result.filename}.`;
+    success.value = true;
+  } catch {
+    message.value = "Failed to export patterns. Please try again.";
+    success.value = false;
+  } finally {
+    exportingPatterns.value = false;
+  }
+};
 
 const handleMoveAllLowToNoise = async () => {
   movingLowToNoise.value = true;

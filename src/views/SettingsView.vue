@@ -1116,7 +1116,7 @@ import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSettings, getSettingValue, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns, getPatterns, updatePattern, deletePattern, getPatternStats } from "@/services/rules";
+import { deleteAllPatterns, getPatterns, updatePattern, deletePattern } from "@/services/rules";
 import type { HealthStatus, StatsData, PatternItem } from "@/types";
 import type { EditableSetting } from "@/services/system";
 import StatusBadge from "@/components/StatusBadge.vue";
@@ -1173,7 +1173,6 @@ let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Patterns tab state
 const allPatterns = ref<PatternItem[]>([]);
-const patternStats = ref<Record<string, { hour: string; count: number }[]>>({});
 const loadingPatterns = ref(false);
 const patternsMessage = ref("");
 const patternsSuccess = ref(false);
@@ -2046,15 +2045,11 @@ const loadAllPatterns = async () => {
   loadingPatterns.value = true;
   patternsMessage.value = "";
   try {
-    const [patternsResponse, statsResponse] = await Promise.all([
-      getPatterns({ limit: 10000 }),
-      getPatternStats(12),
-    ]);
+    const patternsResponse = await getPatterns({ limit: 10000 });
     allPatterns.value = (patternsResponse.items || []).map((pattern) => ({
       ...pattern,
       user_override: pattern.user_override || pattern.effective_classification || pattern.classification || "",
     }));
-    patternStats.value = statsResponse || {};
     patternRegexSearchSnapshot.value = Object.fromEntries(
       allPatterns.value.map((pattern) => [pattern.id, (pattern.match_regex || "").toLowerCase()]),
     );
