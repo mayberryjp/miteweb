@@ -10,15 +10,17 @@
           :show-arrows="!lgAndUp"
           color="primary"
         >
+          <v-tab value="health">HEALTH</v-tab>
           <v-tab value="general">GENERAL</v-tab>
           <v-tab value="processing">PROCESSING</v-tab>
-          <v-tab value="network-tuning">NETWORK TUNING</v-tab>
+          <v-tab value="store-and-forward">STORE &amp; FORWARD</v-tab>
           <v-tab value="retention">RETENTION</v-tab>
-          <v-tab value="health">HEALTH</v-tab>
+          <v-tab value="notifications">NOTIFICATIONS</v-tab>
           <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="prompt">PROMPT</v-tab>
-          <v-tab value="notifications">NOTIFICATIONS</v-tab>
           <v-tab value="patterns">PATTERNS</v-tab>
+          <v-tab value="network-tuning">NETWORK TUNING</v-tab>
+          <v-tab value="debugging">DEBUGGING</v-tab>
           <v-tab value="bulk-operations">BULK OPERATIONS</v-tab>
           <v-tab value="actions">DANGEROUS ACTIONS</v-tab>
         </v-tabs>
@@ -32,6 +34,75 @@
               <h3>General Settings</h3>
               <v-divider class="my-4"></v-divider>
               <GeneralSettingsPanel :settings="editableSettings" :settings-ready="editableSettingsReady" />
+            </v-window-item>
+
+            <v-window-item value="debugging">
+              <h3>Debugging Settings</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-table class="settings-form-table" density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left" colspan="2">Setting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Write Application Log</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="writeApplicationLog"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="processingLoading || processingSaving"
+                          @update:model-value="flushProcessingAutoSave"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">When enabled, the backend writes an application log file for debugging and operational visibility.</div>
+                        <div class="setting-default">Default: <span>off</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Log AI Requests</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="logAiRequests"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="processingLoading || processingSaving"
+                          @update:model-value="flushProcessingAutoSave"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">When enabled, the backend logs the full AI request and response payloads for debugging and auditing.</div>
+                        <div class="setting-default">Default: <span>off</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <v-alert
+                v-if="processingMessage"
+                :type="processingSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="processingMessage = ''"
+              >
+                {{ processingMessage }}
+              </v-alert>
             </v-window-item>
 
             <v-window-item value="actions">
@@ -260,6 +331,103 @@
                       <div class="setting-meta">
                         <div class="setting-details">How long compiled regex pattern cache is kept in the processor before refreshing from the database. Lower values pick up regex updates faster; higher values reduce DB lookups.</div>
                         <div class="setting-default">Default: <span>60</span></div>
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+
+              <v-alert
+                v-if="processingMessage"
+                :type="processingSuccess ? 'success' : 'error'"
+                variant="tonal"
+                class="mt-4"
+                closable
+                @click:close="processingMessage = ''"
+              >
+                {{ processingMessage }}
+              </v-alert>
+            </v-window-item>
+
+            <v-window-item value="store-and-forward">
+              <h3>Store &amp; Forward Settings</h3>
+              <v-divider class="my-4"></v-divider>
+
+              <v-table class="settings-form-table" density="compact">
+                <thead>
+                  <tr>
+                    <th class="text-left" colspan="2">Setting</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Minimum Database Classification</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-select
+                          v-model="dbStoreMinClassification"
+                          :items="syslogForwardClassificationOptions"
+                          item-title="title"
+                          item-value="value"
+                          variant="outlined"
+                          density="compact"
+                          hide-details
+                          :disabled="processingLoading || processingSaving"
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Only logs at or above this effective classification level are stored: noise, low, medium, high, critical.</div>
+                        <div class="setting-default">Default: <span>low</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Write Syslog Log</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-switch
+                          v-model="writeSyslogLog"
+                          color="primary"
+                          hide-details
+                          density="compact"
+                          :disabled="processingLoading || processingSaving"
+                          @update:model-value="flushProcessingAutoSave"
+                        ></v-switch>
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">When enabled, the backend writes received syslog messages to a log file.</div>
+                        <div class="setting-default">Default: <span>off</span></div>
+                      </div>
+                    </td>
+                  </tr>
+
+                  <tr>
+                    <td class="setting-name-cell">
+                      <div class="font-weight-medium">Minimum Syslog Log Classification</div>
+                    </td>
+                    <td class="align-top">
+                      <div class="setting-row-flex">
+                        <v-select
+                          v-model="writeSyslogMinClassification"
+                          :items="syslogForwardClassificationOptions"
+                          item-title="title"
+                          item-value="value"
+                          variant="outlined"
+                          density="compact"
+                          hide-details
+                          :disabled="processingLoading || processingSaving"
+                          class="processing-input"
+                        />
+                      </div>
+                      <div class="setting-meta">
+                        <div class="setting-details">Only logs at or above this level are written to the daily syslog files (when Write Syslog Log is enabled): noise, low, medium, high, critical.</div>
+                        <div class="setting-default">Default: <span>low</span></div>
                       </div>
                     </td>
                   </tr>
@@ -550,27 +718,6 @@
                       <div class="setting-meta">
                         <div class="setting-details">Number of days to keep alert records before retention cleanup removes older alerts. Higher values preserve incident history longer, while lower values keep the alerts table smaller and faster.</div>
                         <div class="setting-default">Default: <span>30</span></div>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <tr>
-                    <td class="setting-name-cell">
-                      <div class="font-weight-medium">Save Noise Logs</div>
-                    </td>
-                    <td class="align-top">
-                      <div class="setting-row-flex">
-                        <v-switch
-                          v-model="saveNoiseLogs"
-                          color="primary"
-                          hide-details
-                          density="compact"
-                          :disabled="retentionLoading || retentionSaving"
-                        ></v-switch>
-                      </div>
-                      <div class="setting-meta">
-                        <div class="setting-details">Persist logs tied to noise-classified patterns instead of deleting them. When disabled, logs matching noise patterns are discarded to keep the database lean.</div>
-                        <div class="setting-default">Default: <span>on</span></div>
                       </div>
                     </td>
                   </tr>
@@ -996,17 +1143,20 @@
                     <td class="text-medium-emphasis">Logs Last 24h</td>
                     <td class="font-weight-medium">{{ stats.logs_last_24h.toLocaleString() }}</td>
                   </tr>
-                  <tr v-if="stats?.total_logs != null">
+                  <tr v-if="stats?.total_logs != null || patternHitCountSum != null">
+                    <td colspan="2" class="match-group-header text-overline">These numbers should match</td>
+                  </tr>
+                  <tr v-if="stats?.total_logs != null" class="match-group-row">
                     <td class="text-medium-emphasis">Total Logs</td>
                     <td class="font-weight-medium">{{ stats.total_logs.toLocaleString() }}</td>
+                  </tr>
+                  <tr v-if="patternHitCountSum != null" class="match-group-row match-group-end">
+                    <td class="text-medium-emphasis">Pattern Hit Count Sum</td>
+                    <td class="font-weight-medium">{{ patternHitCountSum.toLocaleString() }}</td>
                   </tr>
                   <tr v-if="stats?.discarded_too_small_count != null">
                     <td class="text-medium-emphasis">Discarded (Too Small)</td>
                     <td class="font-weight-medium">{{ stats.discarded_too_small_count.toLocaleString() }}</td>
-                  </tr>
-                  <tr v-if="patternHitCountSum != null">
-                    <td class="text-medium-emphasis">Pattern Hit Count Sum</td>
-                    <td class="font-weight-medium">{{ patternHitCountSum.toLocaleString() }}</td>
                   </tr>
                   <tr v-if="stats?.alerts_last_hour != null">
                     <td class="text-medium-emphasis">Alerts Last Hour</td>
@@ -1372,6 +1522,11 @@ const regexCacheTtlSeconds = ref("");
 const syslogForwardEnabled = ref(false);
 const syslogForwardDestination = ref("");
 const syslogForwardMinClassification = ref("low");
+const writeSyslogLog = ref(false);
+const writeSyslogMinClassification = ref("low");
+const dbStoreMinClassification = ref("low");
+const writeApplicationLog = ref(false);
+const logAiRequests = ref(false);
 const initialAiDiscoveryIntervalSeconds = ref("");
 const initialAiBatchSize = ref("");
 const initialProcessorIntervalSeconds = ref("");
@@ -1381,6 +1536,11 @@ const initialRegexCacheTtlSeconds = ref("");
 const initialSyslogForwardEnabled = ref(false);
 const initialSyslogForwardDestination = ref("");
 const initialSyslogForwardMinClassification = ref("low");
+const initialWriteSyslogLog = ref(false);
+const initialWriteSyslogMinClassification = ref("low");
+const initialDbStoreMinClassification = ref("low");
+const initialWriteApplicationLog = ref(false);
+const initialLogAiRequests = ref(false);
 const processingPendingSave = ref(false);
 let processingAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -1409,7 +1569,12 @@ const processingDirty = computed(
     || normalizeSettingValue(regexCacheTtlSeconds.value) !== initialRegexCacheTtlSeconds.value
     || syslogForwardEnabled.value !== initialSyslogForwardEnabled.value
     || normalizeSettingValue(syslogForwardDestination.value) !== initialSyslogForwardDestination.value
-    || normalizeSyslogForwardClassification(syslogForwardMinClassification.value) !== initialSyslogForwardMinClassification.value,
+    || normalizeSyslogForwardClassification(syslogForwardMinClassification.value) !== initialSyslogForwardMinClassification.value
+    || writeSyslogLog.value !== initialWriteSyslogLog.value
+    || normalizeSyslogForwardClassification(writeSyslogMinClassification.value) !== initialWriteSyslogMinClassification.value
+    || normalizeSyslogForwardClassification(dbStoreMinClassification.value) !== initialDbStoreMinClassification.value
+    || writeApplicationLog.value !== initialWriteApplicationLog.value
+    || logAiRequests.value !== initialLogAiRequests.value,
 );
 
 const fetchProcessingSettings = async () => {
@@ -1427,6 +1592,15 @@ const fetchProcessingSettings = async () => {
     const loadedSyslogForwardMinClassification = normalizeSyslogForwardClassification(
       getEditableSetting("syslog_forward_min_classification", "low"),
     );
+    const loadedWriteSyslogLog = parseBoolSetting(getEditableSetting("write_syslog_log", "false"));
+    const loadedWriteSyslogMinClassification = normalizeSyslogForwardClassification(
+      getEditableSetting("write_syslog_min_classification", "low"),
+    );
+    const loadedDbStoreMinClassification = normalizeSyslogForwardClassification(
+      getEditableSetting("db_store_min_classification", "low"),
+    );
+    const loadedWriteApplicationLog = parseBoolSetting(getEditableSetting("write_application_log", "false"));
+    const loadedLogAiRequests = parseBoolSetting(getEditableSetting("log_ai_requests", "false"));
 
     aiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
     aiBatchSize.value = loadedAiBatchSize;
@@ -1437,6 +1611,11 @@ const fetchProcessingSettings = async () => {
     syslogForwardEnabled.value = loadedSyslogForwardEnabled;
     syslogForwardDestination.value = loadedSyslogForwardDestination;
     syslogForwardMinClassification.value = loadedSyslogForwardMinClassification;
+    writeSyslogLog.value = loadedWriteSyslogLog;
+    writeSyslogMinClassification.value = loadedWriteSyslogMinClassification;
+    dbStoreMinClassification.value = loadedDbStoreMinClassification;
+    writeApplicationLog.value = loadedWriteApplicationLog;
+    logAiRequests.value = loadedLogAiRequests;
 
     initialAiDiscoveryIntervalSeconds.value = loadedAiDiscoveryIntervalSeconds;
     initialAiBatchSize.value = loadedAiBatchSize;
@@ -1447,6 +1626,11 @@ const fetchProcessingSettings = async () => {
     initialSyslogForwardEnabled.value = loadedSyslogForwardEnabled;
     initialSyslogForwardDestination.value = loadedSyslogForwardDestination;
     initialSyslogForwardMinClassification.value = loadedSyslogForwardMinClassification;
+    initialWriteSyslogLog.value = loadedWriteSyslogLog;
+    initialWriteSyslogMinClassification.value = loadedWriteSyslogMinClassification;
+    initialDbStoreMinClassification.value = loadedDbStoreMinClassification;
+    initialWriteApplicationLog.value = loadedWriteApplicationLog;
+    initialLogAiRequests.value = loadedLogAiRequests;
   } catch {
     processingMessage.value = "Failed to load processing settings.";
     processingSuccess.value = false;
@@ -1473,6 +1657,8 @@ const saveProcessingSettings = async () => {
     const normalizedRegexCacheTtlSeconds = normalizeSettingValue(regexCacheTtlSeconds.value);
     const normalizedSyslogForwardDestination = normalizeSettingValue(syslogForwardDestination.value);
     const normalizedSyslogForwardMinClassification = normalizeSyslogForwardClassification(syslogForwardMinClassification.value);
+    const normalizedWriteSyslogMinClassification = normalizeSyslogForwardClassification(writeSyslogMinClassification.value);
+    const normalizedDbStoreMinClassification = normalizeSyslogForwardClassification(dbStoreMinClassification.value);
 
     const updates: Promise<void>[] = [];
     if (normalizedAiDiscoveryIntervalSeconds !== initialAiDiscoveryIntervalSeconds.value) {
@@ -1502,6 +1688,21 @@ const saveProcessingSettings = async () => {
     if (normalizedSyslogForwardMinClassification !== initialSyslogForwardMinClassification.value) {
       updates.push(updateSetting("syslog_forward_min_classification", normalizedSyslogForwardMinClassification));
     }
+    if (writeSyslogLog.value !== initialWriteSyslogLog.value) {
+      updates.push(updateSetting("write_syslog_log", writeSyslogLog.value));
+    }
+    if (normalizedWriteSyslogMinClassification !== initialWriteSyslogMinClassification.value) {
+      updates.push(updateSetting("write_syslog_min_classification", normalizedWriteSyslogMinClassification));
+    }
+    if (normalizedDbStoreMinClassification !== initialDbStoreMinClassification.value) {
+      updates.push(updateSetting("db_store_min_classification", normalizedDbStoreMinClassification));
+    }
+    if (writeApplicationLog.value !== initialWriteApplicationLog.value) {
+      updates.push(updateSetting("write_application_log", writeApplicationLog.value));
+    }
+    if (logAiRequests.value !== initialLogAiRequests.value) {
+      updates.push(updateSetting("log_ai_requests", logAiRequests.value));
+    }
 
     if (updates.length === 0) return;
 
@@ -1525,6 +1726,11 @@ const saveProcessingSettings = async () => {
     initialSyslogForwardEnabled.value = syslogForwardEnabled.value;
     initialSyslogForwardDestination.value = normalizedSyslogForwardDestination;
     initialSyslogForwardMinClassification.value = normalizedSyslogForwardMinClassification;
+    initialWriteSyslogLog.value = writeSyslogLog.value;
+    initialWriteSyslogMinClassification.value = normalizedWriteSyslogMinClassification;
+    initialDbStoreMinClassification.value = normalizedDbStoreMinClassification;
+    initialWriteApplicationLog.value = writeApplicationLog.value;
+    initialLogAiRequests.value = logAiRequests.value;
     processingMessage.value = "Processing settings auto-saved.";
     processingSuccess.value = true;
   } catch {
@@ -1568,6 +1774,11 @@ watch([
   syslogForwardEnabled,
   syslogForwardDestination,
   syslogForwardMinClassification,
+  writeSyslogLog,
+  writeSyslogMinClassification,
+  dbStoreMinClassification,
+  writeApplicationLog,
+  logAiRequests,
 ], () => {
   if (processingLoading.value) return;
   if (!processingDirty.value) return;
@@ -1910,10 +2121,9 @@ const getAiEfficiencyScoreColor = (score: number) => {
 };
 
 const fetchPatternHitCountSum = async () => {
-  const saveNoiseLogsSetting = await getSettingValue<string | number | boolean>("save_noise_logs");
-  const includeNoise = typeof saveNoiseLogsSetting === "boolean"
-    ? saveNoiseLogsSetting
-    : parseBoolSetting(String(saveNoiseLogsSetting));
+  const ranks: Record<string, number> = { noise: 0, low: 1, medium: 2, high: 3, critical: 4 };
+  const minSetting = await getSettingValue<string | number | boolean>("db_store_min_classification");
+  const minRank = ranks[String(minSetting ?? "low").toLowerCase()] ?? ranks.low;
 
   const limit = 10000;
   let offset = 0;
@@ -1923,7 +2133,7 @@ const fetchPatternHitCountSum = async () => {
   while (offset < total) {
     const response = await getPatterns({ limit, offset });
     sum += response.items
-      .filter((p) => includeNoise || (p.effective_classification ?? p.classification) !== "noise")
+      .filter((p) => (ranks[String(p.effective_classification ?? p.classification ?? "noise").toLowerCase()] ?? 0) >= minRank)
       .reduce((currentSum, pattern) => currentSum + (pattern.hit_count ?? 0), 0);
     total = response.total;
     offset += response.items.length;
@@ -2124,6 +2334,17 @@ onUnmounted(() => {
 <style scoped>
 .settings-container {
   height: 100%;
+}
+
+.match-group-header {
+  border-top: 2px solid rgba(var(--v-border-color), 0.4);
+  color: rgb(var(--v-theme-primary));
+  letter-spacing: 0.08em;
+  padding-top: 12px !important;
+}
+
+.match-group-end td {
+  border-bottom: 2px solid rgba(var(--v-border-color), 0.4);
 }
 
 .maintenance-actions {
