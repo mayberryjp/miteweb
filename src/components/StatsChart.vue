@@ -2,7 +2,7 @@
   <v-card color="#0d1117" class="stats-chart-card">
     <v-card-title class="stats-chart-header d-flex align-center px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 stats-chart-title">
-        Log, Alert, Noise, Dropped, and Pattern Rates
+        Log, Alert, Noise, Dropped, Too Small, and Pattern Rates
       </span>
     </v-card-title>
     <v-divider></v-divider>
@@ -42,6 +42,7 @@ const props = defineProps<{
   alertStats: HourlyStat[];
   noiseStats?: HourlyStat[];
   droppedStats?: HourlyStat[];
+  tooSmallStats?: HourlyStat[];
   patternStats100?: HourlyStat[];
   loading: boolean;
   error: boolean;
@@ -49,6 +50,7 @@ const props = defineProps<{
 
 const noiseStats = computed(() => props.noiseStats ?? []);
 const droppedStats = computed(() => props.droppedStats ?? []);
+const tooSmallStats = computed(() => props.tooSmallStats ?? []);
 const patternStats100 = computed(() => props.patternStats100 ?? []);
 
 const hasData = computed(() =>
@@ -56,6 +58,7 @@ const hasData = computed(() =>
   props.alertStats.length > 0 ||
   noiseStats.value.length > 0 ||
   droppedStats.value.length > 0 ||
+  tooSmallStats.value.length > 0 ||
   patternStats100.value.length > 0
 );
 
@@ -83,6 +86,7 @@ const baseHours = computed(() => {
     ...props.alertStats.map((s) => s.hour),
     ...noiseStats.value.map((s) => s.hour),
     ...droppedStats.value.map((s) => s.hour),
+    ...tooSmallStats.value.map((s) => s.hour),
     ...patternStats100.value.map((s) => s.hour),
   ];
   return [...new Set(allHours)].sort((a, b) => a.localeCompare(b));
@@ -116,6 +120,7 @@ const leftAxisRange = computed(() => {
     ...props.logStats.map((s) => s.count),
     ...noiseStats.value.map((s) => s.count),
     ...droppedStats.value.map((s) => s.count),
+    ...tooSmallStats.value.map((s) => s.count),
   ].filter((v) => Number.isFinite(v));
 
   if (!values.length) return { min: 0, max: 10 };
@@ -150,6 +155,11 @@ const series = computed(() => [
     data: toSeriesData(droppedStats.value),
   },
   {
+    name: "Discarded (Too Small)",
+    type: "line",
+    data: toSeriesData(tooSmallStats.value),
+  },
+  {
     name: "Patterns",
     type: "line",
     data: toSeriesData(patternStats100.value),
@@ -164,9 +174,9 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false },
   },
-  colors: ["#1E88E5", "#B71C1C", "#FF9800", "#AB47BC", "#5CDD8B"],
-  fill: { opacity: [1, 0.3, 1, 1, 1] },
-  stroke: { curve: "smooth", width: [3, 0, 2, 2, 2] },
+  colors: ["#1E88E5", "#B71C1C", "#FF9800", "#AB47BC", "#26C6DA", "#5CDD8B"],
+  fill: { opacity: [1, 0.3, 1, 1, 1, 1] },
+  stroke: { curve: "smooth", width: [3, 0, 2, 2, 2, 2] },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
@@ -176,6 +186,7 @@ const chartOptions = computed(() => ({
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} alerts` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} noise` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} dropped` },
+      { formatter: (val: number) => `${Math.round(val).toLocaleString()} too small` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} patterns` },
     ],
   },
@@ -215,6 +226,13 @@ const chartOptions = computed(() => ({
         style: { colors: "#b1b8c0" },
         formatter: (val: number) => Math.round(val).toLocaleString(),
       },
+    },
+    {
+      show: false,
+      min: leftAxisRange.value.min,
+      max: leftAxisRange.value.max,
+      tickAmount: 6,
+      forceNiceScale: true,
     },
     {
       show: false,

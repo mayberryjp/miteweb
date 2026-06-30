@@ -31,6 +31,7 @@
             :alert-stats="hourlyAlerts"
             :noise-stats="hourlyNoise"
             :dropped-stats="hourlyDropped"
+            :too-small-stats="hourlyTooSmall"
             :pattern-stats-100="hourlyPatterns100"
             :loading="chartLoading"
             :error="chartError"
@@ -97,7 +98,7 @@
 import { ref, computed, onMounted, onUnmounted } from "vue";
 import { getHealth, getStats } from "@/services/system";
 import { getAlerts, getAlertsHourly, deleteAlert } from "@/services/alerts";
-import { getLogsHourly, getLogsNoiseHourly, getLogsDroppedHourly } from "@/services/logs";
+import { getLogsHourly, getLogsNoiseHourly, getLogsDroppedHourly, getLogsTooSmallHourly } from "@/services/logs";
 import { getPatternsHourly } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
@@ -113,6 +114,7 @@ const hourlyLogs = ref<HourlyStat[]>([]);
 const hourlyAlerts = ref<HourlyStat[]>([]);
 const hourlyNoise = ref<HourlyStat[]>([]);
 const hourlyDropped = ref<HourlyStat[]>([]);
+const hourlyTooSmall = ref<HourlyStat[]>([]);
 const hourlyPatterns100 = ref<HourlyStat[]>([]);
 const expandedAlerts = ref(new Set<number>());
 const alertsPerPage = ref(50);
@@ -218,17 +220,19 @@ const fetchChartData = async () => {
   chartLoading.value = true;
   chartError.value = false;
   try {
-    const [logs, alerts, noise, dropped, patterns100] = await Promise.all([
+    const [logs, alerts, noise, dropped, tooSmall, patterns100] = await Promise.all([
       getLogsHourly(100),
       getAlertsHourly(100),
       getLogsNoiseHourly(100),
       getLogsDroppedHourly(100),
+      getLogsTooSmallHourly(100),
       getPatternsHourly(100),
     ]);
     hourlyLogs.value = logs;
     hourlyAlerts.value = alerts;
     hourlyNoise.value = noise;
     hourlyDropped.value = dropped;
+    hourlyTooSmall.value = tooSmall;
     hourlyPatterns100.value = patterns100;
   } catch {
     chartError.value = true;

@@ -39,6 +39,11 @@ export const getLogsDroppedHourly = async (hours = 24) => {
   return response.data.stats;
 };
 
+export const getLogsTooSmallHourly = async (hours = 24) => {
+  const response = await api.get<{ hours: number; stats: HourlyStat[] }>("/logs/too-small/hourly", { params: { hours } });
+  return response.data.stats;
+};
+
 export const deleteAllLogs = async () => {
   const response = await api.delete<{ status: string; deleted: number }>("/logs");
   return response.data;
