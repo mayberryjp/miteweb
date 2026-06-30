@@ -21,7 +21,7 @@
           <v-tab value="patterns">PATTERNS</v-tab>
           <v-tab value="network-tuning">NETWORK TUNING</v-tab>
           <v-tab value="debugging">DEBUGGING</v-tab>
-          <v-tab value="bulk-operations">BULK OPERATIONS</v-tab>
+          <v-tab value="bulk-operations">DATABASE CLEANUP</v-tab>
           <v-tab value="actions">DANGEROUS ACTIONS</v-tab>
         </v-tabs>
       </v-col>
@@ -740,6 +740,17 @@
               <h3>Patterns</h3>
               <v-divider class="my-4"></v-divider>
 
+              <v-btn
+                color="info"
+                variant="elevated"
+                prepend-icon="mdi-download"
+                class="mb-4"
+                :loading="exportingPatterns"
+                @click="handleExportPatterns"
+              >
+                EXPORT PATTERNS
+              </v-btn>
+
               <v-text-field
                 v-model="patternIdSearch"
                 class="mb-4"
@@ -858,7 +869,7 @@
             </v-window-item>
 
             <v-window-item value="bulk-operations">
-              <h3>Bulk Operations</h3>
+              <h3>Database Cleanup</h3>
               <v-divider class="my-4"></v-divider>
               <BulkOperationsPanel />
             </v-window-item>
@@ -1270,7 +1281,7 @@ import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSettings, getSettingValue, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns, getPatterns, getPatternHitsByClassification, updatePattern, deletePattern } from "@/services/rules";
+import { deleteAllPatterns, getPatterns, getPatternHitsByClassification, exportPatterns, updatePattern, deletePattern } from "@/services/rules";
 import type { HealthStatus, StatsData, PatternItem } from "@/types";
 import type { EditableSetting } from "@/services/system";
 import StatusBadge from "@/components/StatusBadge.vue";
@@ -1330,6 +1341,22 @@ const allPatterns = ref<PatternItem[]>([]);
 const loadingPatterns = ref(false);
 const patternsMessage = ref("");
 const patternsSuccess = ref(false);
+const exportingPatterns = ref(false);
+
+const handleExportPatterns = async () => {
+  exportingPatterns.value = true;
+  patternsMessage.value = "";
+  try {
+    const result = await exportPatterns();
+    patternsSuccess.value = true;
+    patternsMessage.value = `Exported ${result.count.toLocaleString()} patterns to ${result.filename}.`;
+  } catch {
+    patternsSuccess.value = false;
+    patternsMessage.value = "Failed to export patterns. Please try again.";
+  } finally {
+    exportingPatterns.value = false;
+  }
+};
 const patternIdSearch = ref("");
 const patternRegexSearchSnapshot = ref<Record<number, string>>({});
 const patternSeverityOptions = [
