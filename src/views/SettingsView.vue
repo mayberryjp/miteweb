@@ -257,7 +257,7 @@
                         />
                       </div>
                       <div class="setting-meta">
-                        <div class="setting-details">Defines how often the log processor loop runs. Lower values reduce processing latency, while higher values reduce CPU/database churn.</div>
+                        <div class="setting-details">Defines how long the log processor loop sleeps between cycles. Lower values reduce processing latency, while higher values reduce CPU/database churn.</div>
                         <div class="setting-default">Default: <span>10</span></div>
                       </div>
                     </td>
@@ -1154,6 +1154,10 @@
                     <td class="text-medium-emphasis">Pattern Hit Count Sum</td>
                     <td class="font-weight-medium">{{ patternHitCountSum.toLocaleString() }}</td>
                   </tr>
+                  <tr v-if="stats?.silently_dropped_count != null">
+                    <td class="text-medium-emphasis">Silently Dropped (Listener)</td>
+                    <td class="font-weight-medium">{{ stats.silently_dropped_count.toLocaleString() }}</td>
+                  </tr>
                   <tr v-if="stats?.discarded_too_small_count != null">
                     <td class="text-medium-emphasis">Discarded (Too Small)</td>
                     <td class="font-weight-medium">{{ stats.discarded_too_small_count.toLocaleString() }}</td>
@@ -1266,7 +1270,7 @@ import { useDisplay } from "vuetify";
 import { getHealth, getStats, testDiscord, getSettings, getSettingValue, updateSetting, resetSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns, getPatterns, updatePattern, deletePattern } from "@/services/rules";
+import { deleteAllPatterns, getPatterns, getPatternHitsByClassification, updatePattern, deletePattern } from "@/services/rules";
 import type { HealthStatus, StatsData, PatternItem } from "@/types";
 import type { EditableSetting } from "@/services/system";
 import StatusBadge from "@/components/StatusBadge.vue";
@@ -2125,22 +2129,10 @@ const fetchPatternHitCountSum = async () => {
   const minSetting = await getSettingValue<string | number | boolean>("db_store_min_classification");
   const minRank = ranks[String(minSetting ?? "low").toLowerCase()] ?? ranks.low;
 
-  const limit = 10000;
-  let offset = 0;
-  let total = Number.POSITIVE_INFINITY;
-  let sum = 0;
-
-  while (offset < total) {
-    const response = await getPatterns({ limit, offset });
-    sum += response.items
-      .filter((p) => (ranks[String(p.effective_classification ?? p.classification ?? "noise").toLowerCase()] ?? 0) >= minRank)
-      .reduce((currentSum, pattern) => currentSum + (pattern.hit_count ?? 0), 0);
-    total = response.total;
-    offset += response.items.length;
-    if (response.items.length === 0) break;
-  }
-
-  patternHitCountSum.value = sum;
+  const items = await getPatternHitsByClassification();
+  patternHitCountSum.value = items
+    .filter((item) => (ranks[String(item.classification ?? "noise").toLowerCase()] ?? 0) >= minRank)
+    .reduce((sum, item) => sum + (item.hit_count_sum ?? 0), 0);
 };
 
 const fetchData = async () => {

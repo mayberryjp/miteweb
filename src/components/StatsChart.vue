@@ -2,7 +2,7 @@
   <v-card color="#0d1117" class="stats-chart-card">
     <v-card-title class="stats-chart-header d-flex align-center px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 stats-chart-title">
-        Log, Alert, Noise, and Pattern Rates
+        Log, Alert, Noise, Dropped, and Pattern Rates
       </span>
     </v-card-title>
     <v-divider></v-divider>
@@ -41,18 +41,21 @@ const props = defineProps<{
   logStats: HourlyStat[];
   alertStats: HourlyStat[];
   noiseStats?: HourlyStat[];
+  droppedStats?: HourlyStat[];
   patternStats100?: HourlyStat[];
   loading: boolean;
   error: boolean;
 }>();
 
 const noiseStats = computed(() => props.noiseStats ?? []);
+const droppedStats = computed(() => props.droppedStats ?? []);
 const patternStats100 = computed(() => props.patternStats100 ?? []);
 
 const hasData = computed(() =>
   props.logStats.length > 0 ||
   props.alertStats.length > 0 ||
   noiseStats.value.length > 0 ||
+  droppedStats.value.length > 0 ||
   patternStats100.value.length > 0
 );
 
@@ -79,6 +82,7 @@ const baseHours = computed(() => {
     ...props.logStats.map((s) => s.hour),
     ...props.alertStats.map((s) => s.hour),
     ...noiseStats.value.map((s) => s.hour),
+    ...droppedStats.value.map((s) => s.hour),
     ...patternStats100.value.map((s) => s.hour),
   ];
   return [...new Set(allHours)].sort((a, b) => a.localeCompare(b));
@@ -111,6 +115,7 @@ const leftAxisRange = computed(() => {
   const values = [
     ...props.logStats.map((s) => s.count),
     ...noiseStats.value.map((s) => s.count),
+    ...droppedStats.value.map((s) => s.count),
   ].filter((v) => Number.isFinite(v));
 
   if (!values.length) return { min: 0, max: 10 };
@@ -140,6 +145,11 @@ const series = computed(() => [
     data: toSeriesData(noiseStats.value),
   },
   {
+    name: "Silently Dropped",
+    type: "line",
+    data: toSeriesData(droppedStats.value),
+  },
+  {
     name: "Patterns",
     type: "line",
     data: toSeriesData(patternStats100.value),
@@ -154,9 +164,9 @@ const chartOptions = computed(() => ({
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false },
   },
-  colors: ["#1E88E5", "#B71C1C", "#FF9800", "#5CDD8B"],
-  fill: { opacity: [1, 0.3, 1, 1] },
-  stroke: { curve: "smooth", width: [3, 0, 2, 2] },
+  colors: ["#1E88E5", "#B71C1C", "#FF9800", "#AB47BC", "#5CDD8B"],
+  fill: { opacity: [1, 0.3, 1, 1, 1] },
+  stroke: { curve: "smooth", width: [3, 0, 2, 2, 2] },
   dataLabels: { enabled: false },
   tooltip: {
     theme: "dark",
@@ -165,6 +175,7 @@ const chartOptions = computed(() => ({
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} logs` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} alerts` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} noise` },
+      { formatter: (val: number) => `${Math.round(val).toLocaleString()} dropped` },
       { formatter: (val: number) => `${Math.round(val).toLocaleString()} patterns` },
     ],
   },
@@ -204,6 +215,13 @@ const chartOptions = computed(() => ({
         style: { colors: "#b1b8c0" },
         formatter: (val: number) => Math.round(val).toLocaleString(),
       },
+    },
+    {
+      show: false,
+      min: leftAxisRange.value.min,
+      max: leftAxisRange.value.max,
+      tickAmount: 6,
+      forceNiceScale: true,
     },
     {
       show: false,

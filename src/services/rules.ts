@@ -39,6 +39,13 @@ export const getPatternsHourly = async (hours = 24) => {
   return response.data.stats;
 };
 
+export const getPatternHitsByClassification = async () => {
+  const response = await api.get<{ items: { classification: string; hit_count_sum: number; pattern_count: number }[] }>(
+    "/patterns/hits-by-classification"
+  );
+  return response.data.items;
+};
+
 export const getPatternTimeSeries = async (patternId: number, hours: number = 24) => {
   const response = await api.get<{ pattern_id: number; hours: number; stats: { hour: string; count: number }[] }>(
     `/patterns/${patternId}/stats`, { params: { hours } }

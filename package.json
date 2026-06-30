@@ -1,7 +1,7 @@
 {
   "name": "miteweb",
   "private": true,
-  "version": "2026.06.29.942",
+  "version": "2026.06.30.1004",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3030",

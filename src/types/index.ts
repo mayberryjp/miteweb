@@ -102,6 +102,7 @@ export interface StatsData {
   database_size_bytes?: number;
   ai_enabled?: boolean;
   ai_api_calls_24h?: number;
+  silently_dropped_count?: number;
   discarded_too_small_count?: number;
 }
 
