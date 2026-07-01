@@ -53,6 +53,21 @@ const droppedStats = computed(() => props.droppedStats ?? []);
 const tooSmallStats = computed(() => props.tooSmallStats ?? []);
 const patternStats100 = computed(() => props.patternStats100 ?? []);
 
+const isCurrentHour = (hour: string) => {
+  const d = new Date(hour);
+  if (Number.isNaN(d.getTime())) return false;
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate() &&
+    d.getHours() === now.getHours()
+  );
+};
+
+// Pattern counts for the in-progress current hour are incomplete, so exclude them.
+const patternStatsTrimmed = computed(() => patternStats100.value.filter((s) => !isCurrentHour(s.hour)));
+
 const hasData = computed(() =>
   props.logStats.length > 0 ||
   props.alertStats.length > 0 ||
@@ -102,7 +117,7 @@ const toSeriesData = (stats: HourlyStat[]) => {
 const rightAxisRange = computed(() => {
   const values = [
     ...props.alertStats.map((s) => s.count),
-    ...patternStats100.value.map((s) => s.count),
+    ...patternStatsTrimmed.value.map((s) => s.count),
   ].filter((v) => Number.isFinite(v));
 
   if (!values.length) return { min: 0, max: 10 };
@@ -162,7 +177,7 @@ const series = computed(() => [
   {
     name: "Patterns",
     type: "line",
-    data: toSeriesData(patternStats100.value),
+    data: toSeriesData(patternStatsTrimmed.value),
   },
 ]);
 
