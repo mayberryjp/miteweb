@@ -13,14 +13,33 @@
         clearable
         @click:clear="searchTerm = ''"
       ></v-text-field>
-      <v-checkbox
-        v-model="showInactive"
-        density="compact"
-        hide-details
-        color="primary"
-        label="Show inactive"
-        class="mt-2"
-      ></v-checkbox>
+      <div class="d-flex align-center mt-2">
+        <v-checkbox
+          v-model="showInactive"
+          density="compact"
+          hide-details
+          color="primary"
+          label="Show inactive"
+        ></v-checkbox>
+        <v-btn
+          variant="text"
+          size="small"
+          prepend-icon="mdi-unfold-more-horizontal"
+          class="group-toggle-btn ml-2"
+          @click="expandAllGroups"
+        >
+          Expand
+        </v-btn>
+        <v-btn
+          variant="text"
+          size="small"
+          prepend-icon="mdi-unfold-less-horizontal"
+          class="group-toggle-btn"
+          @click="collapseAllGroups"
+        >
+          Collapse
+        </v-btn>
+      </div>
     </div>
 
     <!-- Classification groups -->
@@ -139,6 +158,18 @@ const collapsedGroups = ref<Record<string, boolean>>({
 
 const toggleGroup = (cls: string) => {
   collapsedGroups.value[cls] = collapsedGroups.value[cls] === false;
+};
+
+const expandAllGroups = () => {
+  for (const group of groupedPatterns.value) {
+    collapsedGroups.value[group.classification] = false;
+  }
+};
+
+const collapseAllGroups = () => {
+  for (const group of groupedPatterns.value) {
+    collapsedGroups.value[group.classification] = true;
+  }
 };
 
 const groupedPatterns = computed(() => {
@@ -299,6 +330,21 @@ onMounted(() => {
 
 .search-field :deep(.v-field__outline) {
   opacity: 0.3;
+}
+
+.group-toggle-btn {
+  text-transform: none;
+  letter-spacing: 0.15px;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #fff;
+  opacity: 1;
+  min-width: 0;
+  padding: 0 6px;
+}
+
+.group-toggle-btn:hover {
+  opacity: 0.8;
 }
 
 .threat-score-text {

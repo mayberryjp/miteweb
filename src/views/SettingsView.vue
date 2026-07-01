@@ -1142,9 +1142,13 @@
                     <td class="text-medium-emphasis">API Base URL</td>
                     <td class="font-weight-medium">{{ apiBaseUrl }}</td>
                   </tr>
-                  <tr v-if="stats?.database_size_bytes != null">
-                    <td class="text-medium-emphasis">Database Size</td>
-                    <td class="font-weight-medium">{{ formatBytes(stats.database_size_bytes) }}</td>
+                  <tr v-if="miteDbSizeBytes != null">
+                    <td class="text-medium-emphasis">Mite Database Size (mite.db)</td>
+                    <td class="font-weight-medium">{{ formatBytes(miteDbSizeBytes) }}</td>
+                  </tr>
+                  <tr v-if="logsDbSizeBytes != null">
+                    <td class="text-medium-emphasis">Logs Database Size (logs.db)</td>
+                    <td class="font-weight-medium">{{ formatBytes(logsDbSizeBytes) }}</td>
                   </tr>
                   <tr v-if="stats?.logs_last_hour != null">
                     <td class="text-medium-emphasis">Logs Last Hour</td>
@@ -1307,6 +1311,14 @@ const aiEfficiencyScoreValue = computed(() => {
   const rawValue = setting?.value ?? setting?.default;
   return typeof rawValue === "number" ? rawValue : null;
 });
+const settingNumberValue = (key: string): number | null => {
+  const setting = editableSettingsByKey.value.get(key);
+  const rawValue = setting?.value ?? setting?.default;
+  const parsed = typeof rawValue === "string" ? Number(rawValue) : rawValue;
+  return typeof parsed === "number" && Number.isFinite(parsed) ? parsed : null;
+};
+const miteDbSizeBytes = computed(() => settingNumberValue("mite_db_size_bytes"));
+const logsDbSizeBytes = computed(() => settingNumberValue("logs_db_size_bytes"));
 const testingDiscord = ref(false);
 const deletingAlerts = ref(false);
 const deleteAlertsDialog = ref(false);
