@@ -984,7 +984,7 @@
                         ></v-switch>
                       </div>
                       <div class="setting-meta">
-                        <div class="setting-details">Enable or disable Discord notifications for alerts and events.</div>
+                        <div class="setting-details">Enable or disable Discord notifications for alerts and events. Only Critical logs are sent to Discord.</div>
                         <div class="setting-default">Default: <span>Disabled</span></div>
                         <div class="setting-suggested">Suggested: <span>At user's discretion, based on their notification preferences.</span></div>
                       </div>
