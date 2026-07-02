@@ -755,6 +755,23 @@
                 </div>
               </div>
 
+              <v-dialog v-model="exportDialog" max-width="480">
+                <v-card>
+                  <v-card-title class="d-flex align-center">
+                    <v-icon color="success" class="mr-2">mdi-check-circle</v-icon>
+                    Export Complete
+                  </v-card-title>
+                  <v-card-text>
+                    <p class="mb-2">The export can be found in a timestamped file in the data folder:</p>
+                    <code class="d-block">{{ exportedFilename }}</code>
+                  </v-card-text>
+                  <v-card-actions>
+                    <v-spacer></v-spacer>
+                    <v-btn color="primary" variant="text" @click="exportDialog = false">OK</v-btn>
+                  </v-card-actions>
+                </v-card>
+              </v-dialog>
+
               <v-text-field
                 v-model="patternIdSearch"
                 class="mb-4"
@@ -1358,6 +1375,8 @@ const loadingPatterns = ref(false);
 const patternsMessage = ref("");
 const patternsSuccess = ref(false);
 const exportingPatterns = ref(false);
+const exportDialog = ref(false);
+const exportedFilename = ref("");
 
 const handleExportPatterns = async () => {
   exportingPatterns.value = true;
@@ -1366,6 +1385,8 @@ const handleExportPatterns = async () => {
     const result = await exportPatterns();
     patternsSuccess.value = true;
     patternsMessage.value = `Exported ${result.count.toLocaleString()} patterns to ${result.filename}.`;
+    exportedFilename.value = result.filename;
+    exportDialog.value = true;
   } catch {
     patternsSuccess.value = false;
     patternsMessage.value = "Failed to export patterns. Please try again.";
