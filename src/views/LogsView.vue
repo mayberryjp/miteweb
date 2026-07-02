@@ -217,6 +217,7 @@ import { getSettingValue } from "@/services/system";
 import type { LogItem } from "@/types";
 import LiveStatusIndicator from "@/components/LiveStatusIndicator.vue";
 import { formatCompactDateTime } from "@/utils/datetime";
+import { copyToClipboard } from "@/utils/clipboard";
 
 const mode = ref<"live" | "search">("live");
 const logs = ref<LogItem[]>([]);
@@ -278,13 +279,13 @@ const toggleExpand = (id: number) => {
 const copiedLogId = ref<number | null>(null);
 
 const handleCopyLog = async (id: number, message: string) => {
-  try {
-    await navigator.clipboard.writeText(message ?? "");
+  const ok = await copyToClipboard(message);
+  if (ok) {
     copiedLogId.value = id;
     setTimeout(() => {
       if (copiedLogId.value === id) copiedLogId.value = null;
     }, 1500);
-  } catch {
+  } else {
     console.error("Failed to copy log message", id);
   }
 };

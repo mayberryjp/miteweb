@@ -116,6 +116,7 @@ import type { HealthStatus, StatsData, AlertItem, HourlyStat } from "@/types";
 import SeverityBadge from "@/components/SeverityBadge.vue";
 import StatsChart from "@/components/StatsChart.vue";
 import { formatCompactDateTimeNoSeconds } from "@/utils/datetime";
+import { copyToClipboard } from "@/utils/clipboard";
 
 const health = ref<HealthStatus | null>(null);
 const stats = ref<StatsData | null>(null);
@@ -179,13 +180,13 @@ const toggleAlert = (id: number) => {
 const copiedAlertId = ref<number | null>(null);
 
 const handleCopyMessage = async (id: number, message: string) => {
-  try {
-    await navigator.clipboard.writeText(message ?? "");
+  const ok = await copyToClipboard(message);
+  if (ok) {
     copiedAlertId.value = id;
     setTimeout(() => {
       if (copiedAlertId.value === id) copiedAlertId.value = null;
     }, 1500);
-  } catch {
+  } else {
     console.error("Failed to copy alert message", id);
   }
 };
