@@ -60,6 +60,7 @@
                 <th style="width: 120px;">Source</th>
                 <th style="width: 100px;">Pattern #</th>
                 <th>Message</th>
+                <th style="width: 50px;">Copy</th>
                 <th style="width: 50px;">Delete</th>
               </tr>
             </thead>
@@ -75,6 +76,17 @@
                   :style="!expandedAlerts.has(a.id) ? 'max-width: 400px; cursor: pointer;' : 'cursor: pointer;'"
                   @click="toggleAlert(a.id)"
                 >{{ a.message }}</td>
+                <td class="text-center">
+                  <v-btn
+                    icon
+                    variant="text"
+                    size="x-small"
+                    :color="copiedAlertId === a.id ? 'success' : 'primary'"
+                    @click.stop="handleCopyMessage(a.id, a.message)"
+                  >
+                    <v-icon size="small">{{ copiedAlertId === a.id ? 'mdi-check' : 'mdi-content-copy' }}</v-icon>
+                  </v-btn>
+                </td>
                 <td class="text-center">
                   <v-btn
                     icon
@@ -162,6 +174,20 @@ const toggleAlert = (id: number) => {
   if (expandedAlerts.value.has(id)) expandedAlerts.value.delete(id);
   else expandedAlerts.value.add(id);
   expandedAlerts.value = new Set(expandedAlerts.value);
+};
+
+const copiedAlertId = ref<number | null>(null);
+
+const handleCopyMessage = async (id: number, message: string) => {
+  try {
+    await navigator.clipboard.writeText(message ?? "");
+    copiedAlertId.value = id;
+    setTimeout(() => {
+      if (copiedAlertId.value === id) copiedAlertId.value = null;
+    }, 1500);
+  } catch {
+    console.error("Failed to copy alert message", id);
+  }
 };
 
 const handleDeleteAlert = async (id: number) => {

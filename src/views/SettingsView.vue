@@ -740,16 +740,20 @@
               <h3>Patterns</h3>
               <v-divider class="my-4"></v-divider>
 
-              <v-btn
-                color="info"
-                variant="elevated"
-                prepend-icon="mdi-download"
-                class="mb-4"
-                :loading="exportingPatterns"
-                @click="handleExportPatterns"
-              >
-                EXPORT PATTERNS
-              </v-btn>
+              <div class="d-flex align-center mb-4" style="gap: 16px;">
+                <v-btn
+                  color="info"
+                  variant="elevated"
+                  prepend-icon="mdi-download"
+                  :loading="exportingPatterns"
+                  @click="handleExportPatterns"
+                >
+                  EXPORT PATTERNS
+                </v-btn>
+                <div class="text-medium-emphasis text-body-2">
+                  To import patterns, place an <code>patterns_import.json</code> file in the data folder and restart the container.
+                </div>
+              </div>
 
               <v-text-field
                 v-model="patternIdSearch"

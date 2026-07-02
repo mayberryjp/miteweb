@@ -6,6 +6,7 @@
       <router-link to="/" class="product-branding d-flex align-center text-decoration-none ms-2 ms-lg-8">
         <img src="@/assets/mite.png" alt="Mite" width="48" height="48" class="mr-3" />
         <span class="product-name text-h5">Mite
+          <span class="product-jp">見て</span>
           <span class="product-bar tagline">|</span>
           <span class="know-your-network tagline">Know Your Network</span>
         </span>
@@ -132,6 +133,14 @@ const isActive = (to: string) => {
   line-height: 1.4;
   margin-right: 8px;
   letter-spacing: 0.05em !important;
+}
+
+.product-jp {
+  color: #2EC4A0;
+  font-weight: 700;
+  margin-left: 6px;
+  margin-right: 4px;
+  opacity: 0.85;
 }
 
 .know-your-network {

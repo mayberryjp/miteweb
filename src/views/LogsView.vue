@@ -140,6 +140,16 @@
               <span class="text-body-2 log-text text-no-wrap" style="min-width: 80px;">{{ log.source_ip || '—' }}</span>
               <span class="text-body-2 log-text text-no-wrap" style="min-width: 160px;">{{ getPatternName(log) }}</span>
               <span class="text-body-2 log-message">{{ log.message }}</span>
+              <v-btn
+                icon
+                variant="text"
+                size="x-small"
+                class="ml-auto"
+                :color="copiedLogId === log.id ? 'success' : 'primary'"
+                @click.stop="handleCopyLog(log.id, log.message)"
+              >
+                <v-icon size="small">{{ copiedLogId === log.id ? 'mdi-check' : 'mdi-content-copy' }}</v-icon>
+              </v-btn>
             </div>
           </v-list-item>
 
@@ -263,6 +273,20 @@ const getDayLabel = (daysAgo: number) => {
 
 const toggleExpand = (id: number) => {
   expandedId.value = expandedId.value === id ? null : id;
+};
+
+const copiedLogId = ref<number | null>(null);
+
+const handleCopyLog = async (id: number, message: string) => {
+  try {
+    await navigator.clipboard.writeText(message ?? "");
+    copiedLogId.value = id;
+    setTimeout(() => {
+      if (copiedLogId.value === id) copiedLogId.value = null;
+    }, 1500);
+  } catch {
+    console.error("Failed to copy log message", id);
+  }
 };
 
 const getPatternName = (log: LogItem) => {
