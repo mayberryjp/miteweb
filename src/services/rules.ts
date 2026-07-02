@@ -1,5 +1,5 @@
 import api from "./api";
-import type { PatternItem, PaginatedResponse, LogItem, HourlyStat } from "@/types";
+import type { PatternItem, PaginatedResponse, LogItem, HourlyStat, PatternMatchResponse } from "@/types";
 
 export const getPatterns = async (params?: {
   limit?: number;
@@ -85,5 +85,11 @@ export const resetPatternHitCounts = async () => {
 
 export const exportPatterns = async () => {
   const response = await api.post<{ status: string; filename: string; path: string; count: number }>("/patterns/export");
+  return response.data;
+};
+
+// POST /api/patterns/match — returns the matching pattern (or matched: false) for a single log line.
+export const matchLogAgainstPatterns = async (logText: string) => {
+  const response = await api.post<PatternMatchResponse>("/patterns/match", { log: logText });
   return response.data;
 };

@@ -59,6 +59,20 @@ export interface PatternItem {
   filter_at_listener?: boolean;
 }
 
+export interface PatternMatchResponse {
+  matched: boolean;
+  pattern_id: number | null;
+  name: string | null;
+  effective_classification?: string | null;
+  tokenized_message?: string | null;
+  normalized_pattern?: string | null;
+  pattern_hash?: string | null;
+}
+
+export interface PatternMatchResult extends PatternMatchResponse {
+  line: string;
+}
+
 export interface PendingPattern {
   id: number;
   pattern_hash: string;
