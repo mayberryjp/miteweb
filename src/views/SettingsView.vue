@@ -16,10 +16,10 @@
           <v-tab value="store-and-forward">STORE &amp; FORWARD</v-tab>
           <v-tab value="retention">RETENTION</v-tab>
           <v-tab value="notifications">NOTIFICATIONS</v-tab>
-          <v-tab value="hits">PATTERN HITS</v-tab>
-          <v-tab value="prompt">PROMPT</v-tab>
           <v-tab value="patterns">PATTERNS</v-tab>
+          <v-tab value="hits">PATTERN HITS</v-tab>
           <v-tab value="pattern-match">PATTERN MATCH</v-tab>
+          <v-tab value="prompt">PROMPT</v-tab>
           <v-tab value="network-tuning">NETWORK TUNING</v-tab>
           <v-tab value="debugging">DEBUGGING</v-tab>
           <v-tab value="bulk-operations">DATABASE CLEANUP</v-tab>
@@ -797,7 +797,20 @@
                 </thead>
                 <tbody>
                   <tr v-for="pattern in filteredPatterns" :key="pattern.id">
-                    <td class="font-weight-medium">{{ pattern.id }}</td>
+                    <td class="font-weight-medium">
+                      <div class="d-flex align-center" style="gap: 4px;">
+                        <span>{{ pattern.id }}</span>
+                        <v-tooltip
+                          v-if="pattern.filter_at_listener"
+                          location="top"
+                          text="Dropped at listener — matching logs are filtered out fast, before storage"
+                        >
+                          <template #activator="{ props }">
+                            <v-icon v-bind="props" size="14" color="warning">mdi-lightning-bolt</v-icon>
+                          </template>
+                        </v-tooltip>
+                      </div>
+                    </td>
                     <td>
                       <v-text-field
                         v-model="pattern.title"
