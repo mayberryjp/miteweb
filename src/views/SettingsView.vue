@@ -1,5 +1,5 @@
 <template>
-  <v-sheet class="settings-container" color="#0d1117">
+  <v-sheet class="settings-container" color="surface-card">
     <v-row no-gutters>
       <!-- Left side tabs — vertical on desktop (lg+), horizontal scrollable on
            phones & tablets (< lg) so the rail doesn't squeeze the form. -->
@@ -784,7 +784,7 @@
                 placeholder="e.g. 2405, timeout, wlan"
               />
 
-              <v-table density="compact" class="rounded-lg" style="background-color: #0d1117;">
+              <v-table density="compact" class="rounded-lg" style="background-color: rgb(var(--v-theme-surface-card));">
                 <thead>
                   <tr>
                     <th class="text-left">ID</th>
@@ -904,92 +904,7 @@
             </v-window-item>
 
             <v-window-item value="pattern-match">
-              <h3>Pattern Match</h3>
-              <v-divider class="my-4"></v-divider>
-
-              <p class="text-body-2 text-medium-emphasis mb-4">
-                Paste one or more log lines below and Mite will report which pattern ID and name each line matches.
-              </p>
-
-              <v-textarea
-                v-model="patternMatchInput"
-                variant="outlined"
-                label="Log content"
-                placeholder="Paste log lines here, one per line..."
-                rows="10"
-                auto-grow
-                hide-details
-                class="mb-4"
-                :disabled="patternMatching"
-              ></v-textarea>
-
-              <div class="d-flex align-center" style="gap: 16px;">
-                <v-btn
-                  color="primary"
-                  variant="elevated"
-                  prepend-icon="mdi-magnify"
-                  :loading="patternMatching"
-                  :disabled="!patternMatchInput.trim()"
-                  @click="handlePatternMatch"
-                >
-                  MATCH
-                </v-btn>
-                <v-btn
-                  variant="text"
-                  :disabled="patternMatching || (!patternMatchInput && !patternMatchResults.length)"
-                  @click="clearPatternMatch"
-                >
-                  Clear
-                </v-btn>
-              </div>
-
-              <v-alert
-                v-if="patternMatchError"
-                type="error"
-                variant="tonal"
-                class="mt-4"
-                closable
-                @click:close="patternMatchError = ''"
-              >
-                {{ patternMatchError }}
-              </v-alert>
-
-              <v-alert
-                v-if="patternMatchNote"
-                type="info"
-                variant="tonal"
-                class="mt-4"
-                closable
-                @click:close="patternMatchNote = ''"
-              >
-                {{ patternMatchNote }}
-              </v-alert>
-
-              <v-table
-                v-if="patternMatchResults.length"
-                class="mt-4"
-                density="compact"
-              >
-                <thead>
-                  <tr>
-                    <th class="text-left">Log Line</th>
-                    <th class="text-left" style="width: 120px;">Pattern #</th>
-                    <th class="text-left" style="width: 200px;">Pattern Name</th>
-                    <th class="text-left" style="width: 140px;">Classification</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="(result, index) in patternMatchResults" :key="index">
-                    <td class="text-body-2" style="word-break: break-all;">{{ result.line }}</td>
-                    <td class="text-body-2">
-                      <span v-if="result.matched">{{ result.pattern_id ?? '—' }}</span>
-                      <span v-else class="text-medium-emphasis">No match</span>
-                    </td>
-                    <td class="text-body-2">{{ result.matched ? (result.name || '—') : '—' }}</td>
-                    <td class="text-body-2 text-uppercase">{{ result.matched ? (result.effective_classification || '—') : '—' }}</td>
-                  </tr>
-                </tbody>
-              </v-table>
+              <PatternMatchPanel />
             </v-window-item>
 
             <v-window-item value="bulk-operations">
@@ -1171,56 +1086,7 @@
             </v-window-item>
 
             <v-window-item value="prompt">
-              <h3>AI Prompt Template</h3>
-              <v-divider class="my-4"></v-divider>
-
-              <p class="text-body-2 text-medium-emphasis mb-4">
-                Edit the prompt template sent to the AI when analysing syslog patterns.
-                Use <strong>Reset to Default</strong> to restore the built-in template.
-              </p>
-
-              <v-textarea
-                v-model="promptTemplate"
-                variant="outlined"
-                rows="20"
-                auto-grow
-                :loading="promptLoading"
-                :disabled="promptLoading"
-                label="ai_prompt_template"
-                class="prompt-textarea"
-              />
-
-              <div class="d-flex gap-3 mt-3">
-                <v-btn
-                  color="primary"
-                  variant="elevated"
-                  :loading="promptSaving"
-                  prepend-icon="mdi-content-save"
-                  @click="savePrompt"
-                >
-                  Save Prompt
-                </v-btn>
-                <v-btn
-                  color="secondary"
-                  variant="outlined"
-                  :loading="promptResetting"
-                  prepend-icon="mdi-restore"
-                  @click="resetPrompt"
-                >
-                  Reset to Default
-                </v-btn>
-              </div>
-
-              <v-alert
-                v-if="promptMessage"
-                :type="promptSuccess ? 'success' : 'error'"
-                variant="tonal"
-                class="mt-4"
-                closable
-                @click:close="promptMessage = ''"
-              >
-                {{ promptMessage }}
-              </v-alert>
+              <PromptSettingsPanel :settings="editableSettings" :settings-ready="editableSettingsReady" />
             </v-window-item>
 
             <v-window-item value="hits">
@@ -1233,7 +1099,7 @@
               <h3>Health</h3>
               <v-divider class="my-4"></v-divider>
 
-              <v-table density="compact" class="rounded-lg" style="background-color: #0d1117;">
+              <v-table density="compact" class="rounded-lg" style="background-color: rgb(var(--v-theme-surface-card));">
                 <tbody>
                   <tr>
                     <td class="text-medium-emphasis">Status</td>
@@ -1406,14 +1272,17 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch, onUnmounted } from "vue";
 import { useDisplay } from "vuetify";
-import { getHealth, getStats, testDiscord, getSettings, getSettingValue, updateSetting, resetSetting } from "@/services/system";
+import { getHealth, getStats, testDiscord, getSettings, getSettingValue, updateSetting } from "@/services/system";
 import { deleteAllAlerts } from "@/services/alerts";
 import { deleteAllLogs } from "@/services/logs";
-import { deleteAllPatterns, getPatterns, getPatternHitsByClassification, exportPatterns, updatePattern, deletePattern, matchLogAgainstPatterns } from "@/services/rules";
-import type { HealthStatus, StatsData, PatternItem, PatternMatchResult } from "@/types";
+import { deleteAllPatterns, getPatterns, getPatternHitsByClassification, exportPatterns, updatePattern, deletePattern } from "@/services/rules";
+import type { HealthStatus, StatsData, PatternItem } from "@/types";
 import type { EditableSetting } from "@/services/system";
+import { useDebouncedAutoSave } from "@/composables/useDebouncedAutoSave";
 import StatusBadge from "@/components/StatusBadge.vue";
 import GeneralSettingsPanel from "@/components/GeneralSettingsPanel.vue";
+import PatternMatchPanel from "@/components/PatternMatchPanel.vue";
+import PromptSettingsPanel from "@/components/PromptSettingsPanel.vue";
 import BulkOperationsPanel from "@/components/BulkOperationsPanel.vue";
 import PatternHitCountMonitor from "@/components/PatternHitCountMonitor.vue";
 
@@ -1469,8 +1338,6 @@ const initialNotifyOnNewPatterns = ref(false);
 const initialActionOnNoLogs = ref(false);
 const initialNotifyOnNoLogs = ref(false);
 const showDiscordWebhook = ref(false);
-const notificationsPendingSave = ref(false);
-let notificationsAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 // Patterns tab state
 const allPatterns = ref<PatternItem[]>([]);
@@ -1480,42 +1347,6 @@ const patternsSuccess = ref(false);
 const exportingPatterns = ref(false);
 const exportDialog = ref(false);
 const exportedFilename = ref("");
-
-// Pattern Match tab state
-const PATTERN_MATCH_MAX_LINES = 200;
-const patternMatchInput = ref("");
-const patternMatching = ref(false);
-const patternMatchResults = ref<PatternMatchResult[]>([]);
-const patternMatchError = ref("");
-const patternMatchNote = ref("");
-
-const handlePatternMatch = async () => {
-  let lines = patternMatchInput.value.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return;
-  patternMatching.value = true;
-  patternMatchError.value = "";
-  patternMatchNote.value = "";
-  patternMatchResults.value = [];
-  if (lines.length > PATTERN_MATCH_MAX_LINES) {
-    patternMatchNote.value = `Only the first ${PATTERN_MATCH_MAX_LINES} lines were matched.`;
-    lines = lines.slice(0, PATTERN_MATCH_MAX_LINES);
-  }
-  try {
-    const responses = await Promise.all(lines.map((line) => matchLogAgainstPatterns(line)));
-    patternMatchResults.value = responses.map((res, i) => ({ ...res, line: lines[i] }));
-  } catch {
-    patternMatchError.value = "Failed to match log content. Please try again.";
-  } finally {
-    patternMatching.value = false;
-  }
-};
-
-const clearPatternMatch = () => {
-  patternMatchInput.value = "";
-  patternMatchResults.value = [];
-  patternMatchError.value = "";
-  patternMatchNote.value = "";
-};
 
 const handleExportPatterns = async () => {
   exportingPatterns.value = true;
@@ -1635,7 +1466,7 @@ const fetchNotificationsSettings = async () => {
 const saveNotificationsSettings = async () => {
   if (!notificationsDirty.value) return;
   if (notificationsSaving.value) {
-    notificationsPendingSave.value = true;
+    notificationsAutoSave.pending.value = true;
     return;
   }
 
@@ -1682,37 +1513,20 @@ const saveNotificationsSettings = async () => {
     notificationsSuccess.value = false;
   } finally {
     notificationsSaving.value = false;
-    if (notificationsPendingSave.value && notificationsDirty.value) {
-      scheduleNotificationsAutoSave();
+    if (notificationsAutoSave.pending.value && notificationsDirty.value) {
+      notificationsAutoSave.schedule();
     }
   }
 };
 
-const scheduleNotificationsAutoSave = () => {
-  if (notificationsAutoSaveTimer) clearTimeout(notificationsAutoSaveTimer);
-  notificationsAutoSaveTimer = setTimeout(() => {
-    notificationsAutoSaveTimer = null;
-    if (!notificationsPendingSave.value) return;
-    notificationsPendingSave.value = false;
-    void saveNotificationsSettings();
-  }, 600);
-};
-
-const flushNotificationsAutoSave = () => {
-  if (!notificationsPendingSave.value) return;
-  if (notificationsAutoSaveTimer) {
-    clearTimeout(notificationsAutoSaveTimer);
-    notificationsAutoSaveTimer = null;
-  }
-  notificationsPendingSave.value = false;
-  void saveNotificationsSettings();
-};
+const notificationsAutoSave = useDebouncedAutoSave({
+  save: saveNotificationsSettings,
+  canSave: () => !notificationsLoading.value && notificationsDirty.value,
+});
+const flushNotificationsAutoSave = notificationsAutoSave.flush;
 
 watch([discordNotificationsEnabled, discordWebhookUrl, actionOnNewPatterns, notifyOnNewPatterns, actionOnNoLogs, notifyOnNoLogs], () => {
-  if (notificationsLoading.value) return;
-  if (!notificationsDirty.value) return;
-  notificationsPendingSave.value = true;
-  scheduleNotificationsAutoSave();
+  notificationsAutoSave.schedule();
 });
 
 // Processing tab state
@@ -1748,8 +1562,8 @@ const initialWriteSyslogMinClassification = ref("low");
 const initialDbStoreMinClassification = ref("low");
 const initialWriteApplicationLog = ref(false);
 const initialLogAiRequests = ref(false);
-const processingPendingSave = ref(false);
-let processingAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Processing save handler
 
 const syslogForwardClassificationOptions = [
   { title: "Noise", value: "noise" },
@@ -1849,7 +1663,7 @@ const fetchProcessingSettings = async () => {
 const saveProcessingSettings = async () => {
   if (!processingDirty.value) return;
   if (processingSaving.value) {
-    processingPendingSave.value = true;
+    processingAutoSave.pending.value = true;
     return;
   }
 
@@ -1945,31 +1759,17 @@ const saveProcessingSettings = async () => {
     processingSuccess.value = false;
   } finally {
     processingSaving.value = false;
-    if (processingPendingSave.value && processingDirty.value) {
-      scheduleProcessingAutoSave();
+    if (processingAutoSave.pending.value && processingDirty.value) {
+      processingAutoSave.schedule();
     }
   }
 };
 
-const scheduleProcessingAutoSave = () => {
-  if (processingAutoSaveTimer) clearTimeout(processingAutoSaveTimer);
-  processingAutoSaveTimer = setTimeout(() => {
-    processingAutoSaveTimer = null;
-    if (!processingPendingSave.value) return;
-    processingPendingSave.value = false;
-    void saveProcessingSettings();
-  }, 600);
-};
-
-const flushProcessingAutoSave = () => {
-  if (!processingPendingSave.value) return;
-  if (processingAutoSaveTimer) {
-    clearTimeout(processingAutoSaveTimer);
-    processingAutoSaveTimer = null;
-  }
-  processingPendingSave.value = false;
-  void saveProcessingSettings();
-};
+const processingAutoSave = useDebouncedAutoSave({
+  save: saveProcessingSettings,
+  canSave: () => !processingLoading.value && processingDirty.value,
+});
+const flushProcessingAutoSave = processingAutoSave.flush;
 
 watch([
   aiDiscoveryIntervalSeconds,
@@ -1987,10 +1787,7 @@ watch([
   writeApplicationLog,
   logAiRequests,
 ], () => {
-  if (processingLoading.value) return;
-  if (!processingDirty.value) return;
-  processingPendingSave.value = true;
-  scheduleProcessingAutoSave();
+  processingAutoSave.schedule();
 });
 
 // Network Tuning tab state
@@ -2008,8 +1805,8 @@ const initialUdpBatchFlushIntervalSeconds = ref("");
 const initialUdpRecvBufferBytes = ref("");
 const initialTcpBatchSize = ref("");
 const initialTcpBatchFlushIntervalSeconds = ref("");
-const networkTuningPendingSave = ref(false);
-let networkTuningAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Network tuning save handler
 
 const networkTuningDirty = computed(
   () =>
@@ -2052,7 +1849,7 @@ const fetchNetworkTuningSettings = async () => {
 const saveNetworkTuningSettings = async () => {
   if (!networkTuningDirty.value) return;
   if (networkTuningSaving.value) {
-    networkTuningPendingSave.value = true;
+    networkTuningAutoSave.pending.value = true;
     return;
   }
 
@@ -2104,37 +1901,20 @@ const saveNetworkTuningSettings = async () => {
     networkTuningSuccess.value = false;
   } finally {
     networkTuningSaving.value = false;
-    if (networkTuningPendingSave.value && networkTuningDirty.value) {
-      scheduleNetworkTuningAutoSave();
+    if (networkTuningAutoSave.pending.value && networkTuningDirty.value) {
+      networkTuningAutoSave.schedule();
     }
   }
 };
 
-const scheduleNetworkTuningAutoSave = () => {
-  if (networkTuningAutoSaveTimer) clearTimeout(networkTuningAutoSaveTimer);
-  networkTuningAutoSaveTimer = setTimeout(() => {
-    networkTuningAutoSaveTimer = null;
-    if (!networkTuningPendingSave.value) return;
-    networkTuningPendingSave.value = false;
-    void saveNetworkTuningSettings();
-  }, 600);
-};
-
-const flushNetworkTuningAutoSave = () => {
-  if (!networkTuningPendingSave.value) return;
-  if (networkTuningAutoSaveTimer) {
-    clearTimeout(networkTuningAutoSaveTimer);
-    networkTuningAutoSaveTimer = null;
-  }
-  networkTuningPendingSave.value = false;
-  void saveNetworkTuningSettings();
-};
+const networkTuningAutoSave = useDebouncedAutoSave({
+  save: saveNetworkTuningSettings,
+  canSave: () => !networkTuningLoading.value && networkTuningDirty.value,
+});
+const flushNetworkTuningAutoSave = networkTuningAutoSave.flush;
 
 watch([udpBatchSize, udpBatchFlushIntervalSeconds, udpRecvBufferBytes, tcpBatchSize, tcpBatchFlushIntervalSeconds], () => {
-  if (networkTuningLoading.value) return;
-  if (!networkTuningDirty.value) return;
-  networkTuningPendingSave.value = true;
-  scheduleNetworkTuningAutoSave();
+  networkTuningAutoSave.schedule();
 });
 
 // Retention tab state
@@ -2148,8 +1928,8 @@ const saveNoiseLogs = ref(false);
 const initialLogRetentionDays = ref("");
 const initialAlertRetentionDays = ref("");
 const initialSaveNoiseLogs = ref(false);
-const retentionPendingSave = ref(false);
-let retentionAutoSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Retention save handler
 
 const retentionDirty = computed(
   () =>
@@ -2183,7 +1963,7 @@ const fetchRetentionSettings = async () => {
 const saveRetentionSettings = async () => {
   if (!retentionDirty.value) return;
   if (retentionSaving.value) {
-    retentionPendingSave.value = true;
+    retentionAutoSave.pending.value = true;
     return;
   }
 
@@ -2220,88 +2000,21 @@ const saveRetentionSettings = async () => {
     retentionSuccess.value = false;
   } finally {
     retentionSaving.value = false;
-    if (retentionPendingSave.value && retentionDirty.value) {
-      scheduleRetentionAutoSave();
+    if (retentionAutoSave.pending.value && retentionDirty.value) {
+      retentionAutoSave.schedule();
     }
   }
 };
 
-const scheduleRetentionAutoSave = () => {
-  if (retentionAutoSaveTimer) clearTimeout(retentionAutoSaveTimer);
-  retentionAutoSaveTimer = setTimeout(() => {
-    retentionAutoSaveTimer = null;
-    if (!retentionPendingSave.value) return;
-    retentionPendingSave.value = false;
-    void saveRetentionSettings();
-  }, 600);
-};
-
-const flushRetentionAutoSave = () => {
-  if (!retentionPendingSave.value) return;
-  if (retentionAutoSaveTimer) {
-    clearTimeout(retentionAutoSaveTimer);
-    retentionAutoSaveTimer = null;
-  }
-  retentionPendingSave.value = false;
-  void saveRetentionSettings();
-};
+const retentionAutoSave = useDebouncedAutoSave({
+  save: saveRetentionSettings,
+  canSave: () => !retentionLoading.value && retentionDirty.value,
+});
+const flushRetentionAutoSave = retentionAutoSave.flush;
 
 watch([logRetentionDays, alertRetentionDays, saveNoiseLogs], () => {
-  if (retentionLoading.value) return;
-  if (!retentionDirty.value) return;
-  retentionPendingSave.value = true;
-  scheduleRetentionAutoSave();
+  retentionAutoSave.schedule();
 });
-
-// Prompt tab state
-const promptTemplate = ref("");
-const promptLoading = ref(false);
-const promptSaving = ref(false);
-const promptResetting = ref(false);
-const promptMessage = ref("");
-const promptSuccess = ref(false);
-
-const fetchPrompt = async () => {
-  promptLoading.value = true;
-  try {
-    promptTemplate.value = getEditableSetting("ai_prompt_template", "");
-  } catch {
-    promptMessage.value = "Failed to load prompt template.";
-    promptSuccess.value = false;
-  } finally {
-    promptLoading.value = false;
-  }
-};
-
-const savePrompt = async () => {
-  promptSaving.value = true;
-  promptMessage.value = "";
-  try {
-    await updateSetting("ai_prompt_template", promptTemplate.value);
-    promptMessage.value = "Prompt template saved successfully.";
-    promptSuccess.value = true;
-  } catch {
-    promptMessage.value = "Failed to save prompt template.";
-    promptSuccess.value = false;
-  } finally {
-    promptSaving.value = false;
-  }
-};
-
-const resetPrompt = async () => {
-  promptResetting.value = true;
-  promptMessage.value = "";
-  try {
-    promptTemplate.value = await resetSetting("ai_prompt_template");
-    promptMessage.value = "Prompt template reset to default.";
-    promptSuccess.value = true;
-  } catch {
-    promptMessage.value = "Failed to reset prompt template.";
-    promptSuccess.value = false;
-  } finally {
-    promptResetting.value = false;
-  }
-};
 
 const formatUptime = (seconds: number) => {
   const d = Math.floor(seconds / 86400);
@@ -2366,7 +2079,6 @@ const initializeSettingsPages = async () => {
   }
 
   await Promise.allSettled([
-    fetchPrompt(),
     fetchNotificationsSettings(),
     fetchProcessingSettings(),
     fetchNetworkTuningSettings(),
@@ -2508,20 +2220,18 @@ const removePattern = async (patternId: number) => {
   }
 };
 
+const HEALTH_REFRESH_INTERVAL_MS = 60_000;
+
 let healthRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
   fetchData();
   void initializeSettingsPages();
   void loadAllPatterns();
-  healthRefreshTimer = setInterval(fetchData, 60_000);
+  healthRefreshTimer = setInterval(fetchData, HEALTH_REFRESH_INTERVAL_MS);
 });
 
 onUnmounted(() => {
-  if (notificationsAutoSaveTimer) clearTimeout(notificationsAutoSaveTimer);
-  if (processingAutoSaveTimer) clearTimeout(processingAutoSaveTimer);
-  if (networkTuningAutoSaveTimer) clearTimeout(networkTuningAutoSaveTimer);
-  if (retentionAutoSaveTimer) clearTimeout(retentionAutoSaveTimer);
   if (healthRefreshTimer) clearInterval(healthRefreshTimer);
 });
 </script>

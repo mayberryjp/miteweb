@@ -151,7 +151,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
+import { useDebouncedAutoSave } from "@/composables/useDebouncedAutoSave";
 import { updateSetting } from "@/services/system";
 import type { EditableSetting } from "@/services/system";
 
@@ -179,8 +180,6 @@ const loading = ref(true);
 const saving = ref(false);
 const message = ref("");
 const success = ref(false);
-const pendingAutoSave = ref(false);
-let autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
 const serializeReplacementRules = (values: ReplacementRule[]) =>
   values.map((item) => [item.source, item.replacement] as [string, string]);
@@ -263,7 +262,7 @@ const applySettings = () => {
 
 const saveSetting = async () => {
   if (saving.value) {
-    pendingAutoSave.value = true;
+    autoSave.pending.value = true;
     return;
   }
   if (!isDirty.value) return;
@@ -304,31 +303,17 @@ const saveSetting = async () => {
     success.value = false;
   } finally {
     saving.value = false;
-    if (pendingAutoSave.value && isDirty.value) {
-      scheduleAutoSave();
+    if (autoSave.pending.value && isDirty.value) {
+      autoSave.schedule();
     }
   }
 };
 
-const scheduleAutoSave = () => {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer);
-  autoSaveTimer = setTimeout(() => {
-    autoSaveTimer = null;
-    if (!pendingAutoSave.value) return;
-    pendingAutoSave.value = false;
-    void saveSetting();
-  }, 600);
-};
-
-const flushAutoSave = () => {
-  if (!pendingAutoSave.value && !isDirty.value) return;
-  if (autoSaveTimer) {
-    clearTimeout(autoSaveTimer);
-    autoSaveTimer = null;
-  }
-  pendingAutoSave.value = false;
-  void saveSetting();
-};
+const autoSave = useDebouncedAutoSave({
+  save: saveSetting,
+  canSave: () => !loading.value && isDirty.value,
+});
+const flushAutoSave = autoSave.flush;
 
 const addAiSampleReplacementRule = () => {
   const source = aiSampleReplacementSourceDraft.value.trim();
@@ -351,28 +336,15 @@ const removeAiSampleReplacementRule = (index: number) => {
 };
 
 watch(minMessageLength, () => {
-  if (loading.value) return;
-  if (!isDirty.value) return;
-  pendingAutoSave.value = true;
-  scheduleAutoSave();
+  autoSave.schedule();
 });
 
 watch(aiApiDailyRateLimit, () => {
-  if (loading.value) return;
-  if (!isDirty.value) return;
-  pendingAutoSave.value = true;
-  scheduleAutoSave();
+  autoSave.schedule();
 });
 
 watch(aiSamplePreprocessingStringsSerialized, () => {
-  if (loading.value) return;
-  if (!isDirty.value) return;
-  pendingAutoSave.value = true;
-  scheduleAutoSave();
-});
-
-onUnmounted(() => {
-  if (autoSaveTimer) clearTimeout(autoSaveTimer);
+  autoSave.schedule();
 });
 
 watch(

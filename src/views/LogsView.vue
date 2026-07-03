@@ -214,6 +214,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from "vue";
 import { getLogs, getRecentLogs } from "@/services/logs";
 import { getPatterns } from "@/services/rules";
 import { getSettingValue } from "@/services/system";
+import { getApiErrorMessage } from "@/services/api";
 import type { LogItem } from "@/types";
 import LiveStatusIndicator from "@/components/LiveStatusIndicator.vue";
 import { formatCompactDateTime } from "@/utils/datetime";
@@ -364,9 +365,8 @@ const performSearch = async () => {
     await refreshPatternNamesIfMissing(items);
     expandedId.value = null;
     error.value = "";
-  } catch (e: any) {
-    const detail = e?.response ? `${e.response.status} ${e.response.statusText}` : e?.message || "Unknown error";
-    error.value = `Search failed: ${detail}`;
+  } catch (e: unknown) {
+    error.value = `Search failed: ${getApiErrorMessage(e)}`;
   } finally {
     searching.value = false;
   }
@@ -380,9 +380,8 @@ const fetchInitial = async () => {
     await refreshPatternNamesIfMissing(items);
     if (items.length > 0) lastSeenId.value = Math.max(...items.map((l) => l.id));
     error.value = "";
-  } catch (e: any) {
-    const detail = e?.response ? `${e.response.status} ${e.response.statusText}` : e?.message || "Unknown error";
-    error.value = `Backend unavailable: ${detail}`;
+  } catch (e: unknown) {
+    error.value = `Backend unavailable: ${getApiErrorMessage(e)}`;
   }
 };
 
@@ -397,13 +396,14 @@ const pollRecent = async () => {
       lastSeenId.value = Math.max(...items.map((l) => l.id));
     }
     error.value = "";
-  } catch (e: any) {
+  } catch (e: unknown) {
     if (logs.value.length === 0) {
-      const detail = e?.response ? `${e.response.status} ${e.response.statusText}` : e?.message || "Unknown error";
-      error.value = `Backend unavailable: ${detail}`;
+      error.value = `Backend unavailable: ${getApiErrorMessage(e)}`;
     }
   }
 };
+
+const LIVE_POLL_INTERVAL_MS = 2_000;
 
 let pollTimer: ReturnType<typeof setInterval>;
 
@@ -423,7 +423,7 @@ onMounted(() => {
   refreshPatternNames();
   loadRetentionSetting();
   fetchInitial();
-  pollTimer = setInterval(pollRecent, 2000);
+  pollTimer = setInterval(pollRecent, LIVE_POLL_INTERVAL_MS);
 });
 onUnmounted(() => { clearInterval(pollTimer); });
 </script>

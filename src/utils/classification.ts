@@ -34,3 +34,13 @@ export const getClassificationIcon = (pattern: PatternItem): string => {
   if (cls === "noise") return "mdi-volume-off";
   return "mdi-clock-outline";
 };
+
+export const getPatternLabel = (pattern: PatternItem, uppercase = false): string => {
+  let label: string;
+  if (pattern.title) label = pattern.title;
+  else if (pattern.host && pattern.program) label = `${pattern.host} / ${pattern.program}`;
+  else if (pattern.host) label = pattern.host;
+  else if (pattern.program) label = pattern.program;
+  else label = pattern.pattern_text.substring(0, 40);
+  return uppercase ? label.toUpperCase() : label;
+};

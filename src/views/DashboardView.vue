@@ -52,7 +52,7 @@
               style="max-width: 150px;"
             ></v-select>
           </div>
-          <v-table v-if="alerts.length" density="compact" class="rounded-lg alerts-table" style="background-color: #0d1117;">
+          <v-table v-if="alerts.length" density="compact" class="rounded-lg alerts-table" style="background-color: rgb(var(--v-theme-surface-card));">
             <thead>
               <tr>
                 <th style="width: 140px;">Time</th>
@@ -239,8 +239,10 @@ const refreshKpis = async () => {
   } catch { /* silent */ }
 };
 
+const KPI_REFRESH_INTERVAL_MS = 15_000;
+
 let timer: ReturnType<typeof setInterval>;
-onMounted(() => { fetchData(); timer = setInterval(refreshKpis, 15000); });
+onMounted(() => { fetchData(); timer = setInterval(refreshKpis, KPI_REFRESH_INTERVAL_MS); });
 onUnmounted(() => { clearInterval(timer); });
 
 const fetchChartData = async () => {
@@ -271,7 +273,7 @@ const fetchChartData = async () => {
 
 <style scoped>
 .quickstats-background {
-  background-color: #0d1117 !important;
+  background-color: rgb(var(--v-theme-surface-card)) !important;
   color: rgba(255, 255, 255, 0.87);
   padding: 5px;
 }

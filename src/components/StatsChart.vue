@@ -1,5 +1,5 @@
 <template>
-  <v-card color="#0d1117" class="stats-chart-card">
+  <v-card color="surface-card" class="stats-chart-card">
     <v-card-title class="stats-chart-header d-flex align-center px-4 py-3">
       <span class="text-h6 text-sm-h5 text-md-h4 stats-chart-title">
         Log, Alert, Noise, Dropped, Too Small, and Pattern Rates
@@ -35,7 +35,10 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
+import { useTheme } from "vuetify";
 import type { HourlyStat } from "@/types";
+
+const theme = useTheme();
 
 const props = defineProps<{
   logStats: HourlyStat[];
@@ -184,7 +187,7 @@ const series = computed(() => [
 const chartOptions = computed(() => ({
   chart: {
     id: "log-alert-rates-chart",
-    background: "#0d1117",
+    background: theme.current.value.colors["surface-card"],
     toolbar: { show: false },
     animations: { enabled: true, easing: "easeinout", speed: 800 },
     zoom: { enabled: false },

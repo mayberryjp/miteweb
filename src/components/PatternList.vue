@@ -1,5 +1,5 @@
 <template>
-  <v-sheet rounded="lg" height="100%" color="#0d1117" class="pattern-list custom-scrollbar">
+  <v-sheet rounded="lg" height="100%" color="surface-card" class="pattern-list custom-scrollbar">
     <!-- Search Filter -->
     <div class="search-container pa-3">
       <v-text-field
@@ -74,11 +74,11 @@
             <div class="d-flex align-center w-100">
               <div class="icon-container">
                 <span v-if="isNewPattern(p)" class="new-pattern-badge">NEW</span>
-                <v-icon :color="classColor(p)" size="24">{{ classIconName(p) }}</v-icon>
+                <v-icon :color="getClassificationColor(p)" size="24">{{ getClassificationIcon(p) }}</v-icon>
               </div>
-              <div class="host-info">{{ patternLabel(p) }}</div>
+              <div class="host-info">{{ getPatternLabel(p) }}</div>
               <AlertBarChart :alertIntervals="getAlertIntervals(p.id)" class="ml-auto mr-2" />
-              <div class="threat-score-text" :style="{ color: classColor(p) }" :title="getTotalHitCount(p).toLocaleString()">{{ formatCount(getTotalHitCount(p)) }}</div>
+              <div class="threat-score-text" :style="{ color: getClassificationColor(p) }" :title="getTotalHitCount(p).toLocaleString()">{{ formatCount(getTotalHitCount(p)) }}</div>
             </div>
           </v-list-item>
         </template>
@@ -101,6 +101,7 @@ import {
   getClassificationColor,
   getClassificationIcon,
   getPatternClassification,
+  getPatternLabel,
 } from "@/utils/classification";
 
 const PATTERN_LAST_VISIT_STORAGE_KEY = "miteweb:patterns-last-visit-at";
@@ -187,28 +188,12 @@ const groupedPatterns = computed(() => {
     }
   }
   for (const [cls, items] of map) {
-    if (!CLASSIFICATION_ORDER.includes(cls as any) && items.length) {
+    if (!(CLASSIFICATION_ORDER as readonly string[]).includes(cls) && items.length) {
       groups.push({ classification: cls, label: cls, patterns: items });
     }
   }
   return groups;
 });
-
-const classColor = (p: PatternItem): string => {
-  return getClassificationColor(p);
-};
-
-const classIconName = (p: PatternItem): string => {
-  return getClassificationIcon(p);
-};
-
-const patternLabel = (p: PatternItem) => {
-  if (p.title) return p.title;
-  if (p.host && p.program) return `${p.host} / ${p.program}`;
-  if (p.host) return p.host;
-  if (p.program) return p.program;
-  return p.pattern_text.substring(0, 40);
-};
 
 const getAlertIntervals = (patternId: number) => {
   const intervals = props.patternStats[String(patternId)] || [];
@@ -307,9 +292,9 @@ onMounted(() => {
   letter-spacing: 0.4px;
   padding: 2px 5px;
   border-radius: 999px;
-  color: #0d1117;
+  color: rgb(var(--v-theme-surface-card));
   background: #f6c945;
-  border: 1px solid rgba(13, 17, 23, 0.55);
+  border: 1px solid rgba(var(--v-theme-surface-card), 0.55);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
@@ -317,7 +302,7 @@ onMounted(() => {
   position: sticky;
   top: 0;
   z-index: 1;
-  background-color: #0d1117;
+  background-color: rgb(var(--v-theme-surface-card));
 }
 
 .search-field {

@@ -9,14 +9,14 @@
         <transition name="slide-up" mode="out-in">
           <div v-if="pattern" key="detail-content" class="main-content">
             <!-- Header Card -->
-            <v-card color="#0d1117" class="mb-4">
+            <v-card color="surface-card" class="mb-4">
               <v-card-text>
                 <div class="d-flex flex-column flex-wrap">
                   <div class="d-flex flex-column flex-sm-row align-start align-sm-center">
                     <!-- Classification Icon -->
                     <div class="detail-icon-container me-sm-4 mb-3 mb-sm-0 position-relative">
-                      <v-icon :color="classColor(pattern)" size="120" class="icon-with-background">{{ classIconName(pattern) }}</v-icon>
-                      <div class="classification-banner" :style="{ backgroundColor: classColor(pattern) }">
+                      <v-icon :color="getClassificationColor(pattern)" size="120" class="icon-with-background">{{ getClassificationIcon(pattern) }}</v-icon>
+                      <div class="classification-banner" :style="{ backgroundColor: getClassificationColor(pattern) }">
                         <span>{{ (pattern.effective_classification || pattern.classification || 'pending').toUpperCase() }}</span>
                       </div>
                     </div>
@@ -25,7 +25,7 @@
                     <div class="pattern-title flex-grow-1">
                       <div class="d-flex align-start ga-2">
                         <h2 v-if="!editingTitle" class="text-grey custom-heading">
-                          {{ patternLabel(pattern) }}
+                          {{ getPatternLabel(pattern, true) }}
                         </h2>
                         <div v-else class="w-100">
                           <v-text-field
@@ -112,7 +112,7 @@
             <v-row class="mb-4">
               <!-- Edit Pattern (collapsible) -->
               <v-col cols="12">
-                <v-card color="#0d1117" height="100%">
+                <v-card color="surface-card" height="100%">
                   <v-card-title
                     class="d-flex align-center collapsible-header"
                     @click="regexExpanded = !regexExpanded"
@@ -162,7 +162,7 @@
             <PatternStats :pattern="pattern" />
 
             <!-- Per-pattern time series chart -->
-            <v-card color="#0d1117" class="mb-4 pa-2">
+            <v-card color="surface-card" class="mb-4 pa-2">
               <StatsChart
                 :log-stats="patternLogStats"
                 :alert-stats="patternAlertStats"
@@ -172,7 +172,7 @@
             </v-card>
 
             <!-- Per-pattern log listing -->
-            <v-card color="#0d1117" class="mb-4">
+            <v-card color="surface-card" class="mb-4">
               <v-card-title class="d-flex align-center justify-space-between">
                 <span class="text-white">Pattern Logs</span>
                 <span class="text-caption text-grey" v-if="patternLogsTotal">
@@ -181,7 +181,7 @@
               </v-card-title>
               <v-card-text>
                 <v-progress-linear v-if="patternLogsLoading" indeterminate color="primary" class="mb-2"></v-progress-linear>
-                <v-table v-if="patternLogs.length" density="compact" class="rounded-lg alerts-table" style="background-color: #0d1117;">
+                <v-table v-if="patternLogs.length" density="compact" class="rounded-lg alerts-table" style="background-color: rgb(var(--v-theme-surface-card));">
                   <thead>
                     <tr>
                       <th style="width: 140px;">Time</th>
@@ -278,21 +278,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch, inject, type Ref } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { storeToRefs } from "pinia";
+import { usePatternsStore } from "@/stores/patterns";
 import { updatePattern, getPatternTimeSeries, getPatternLogs, deletePattern } from "@/services/rules";
-import type { PatternItem, HourlyStat, LogItem } from "@/types";
+import type { HourlyStat, LogItem } from "@/types";
 import StatsChart from "@/components/StatsChart.vue";
 import PatternStats from "@/components/PatternStats.vue";
-import { getClassificationColor, getClassificationIcon, getPatternClassification } from "@/utils/classification";
+import { getClassificationColor, getClassificationIcon, getPatternClassification, getPatternLabel } from "@/utils/classification";
 import { formatCompactDateTimeNoSeconds } from "@/utils/datetime";
 
 const route = useRoute();
 const router = useRouter();
 
 const patternId = computed(() => Number(route.params.id));
-const patterns = inject<Ref<PatternItem[]>>("patterns", ref([]));
-const refreshPatterns = inject<() => Promise<void>>("refreshPatterns", async () => {});
+const patternsStore = usePatternsStore();
+const { patterns } = storeToRefs(patternsStore);
+const refreshPatterns = patternsStore.refresh;
 const error = ref("");
 const loading = ref(true);
 const overrideValue = ref("");
@@ -346,22 +349,6 @@ const isFilterAtListenerEnabled = computed(() => Boolean(pattern.value?.filter_a
 const filterAtListenerButtonLabel = computed(() =>
   `Filter Out Pattern At Listener: ${isFilterAtListenerEnabled.value ? "Enabled" : "Disabled"}`
 );
-
-const patternLabel = (p: PatternItem) => {
-  if (p.title) return p.title.toUpperCase();
-  if (p.host && p.program) return `${p.host} / ${p.program}`.toUpperCase();
-  if (p.host) return p.host.toUpperCase();
-  if (p.program) return p.program.toUpperCase();
-  return p.pattern_text.substring(0, 40).toUpperCase();
-};
-
-const classColor = (p: PatternItem): string => {
-  return getClassificationColor(p);
-};
-
-const classIconName = (p: PatternItem): string => {
-  return getClassificationIcon(p);
-};
 
 const loadPatternData = async (id: number) => {
   overrideValue.value = "";
@@ -723,8 +710,8 @@ watch(patternId, async (newId) => {
 }
 
 .pattern-actions .v-btn-group {
-  background-color: #0d1117;
-  border: 1px solid #0d1117 !important;
+  background-color: rgb(var(--v-theme-surface-card));
+  border: 1px solid rgb(var(--v-theme-surface-card)) !important;
 }
 
 .pattern-actions .v-btn {

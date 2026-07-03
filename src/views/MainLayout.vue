@@ -15,17 +15,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, provide } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { getPatterns, getPatternStats } from "@/services/rules";
+import { storeToRefs } from "pinia";
+import { usePatternsStore } from "@/stores/patterns";
 import type { PatternItem } from "@/types";
 import PatternList from "@/components/PatternList.vue";
 
 const route = useRoute();
 const router = useRouter();
 
-const patterns = ref<PatternItem[]>([]);
-const patternStats = ref<Record<string, { hour: string; count: number }[]>>({});
+const patternsStore = usePatternsStore();
+const { patterns, patternStats } = storeToRefs(patternsStore);
 
 const selectedPatternId = computed(() => {
   if (route.name === "pattern-detail") return Number(route.params.id);
@@ -36,19 +37,9 @@ const onSelectPattern = (p: PatternItem) => {
   router.push({ name: "pattern-detail", params: { id: p.id } });
 };
 
-const fetchPatterns = async () => {
-  try {
-    const [p, ps] = await Promise.allSettled([getPatterns(), getPatternStats(12)]);
-    if (p.status === "fulfilled") { patterns.value = p.value?.items ?? []; }
-    if (ps.status === "fulfilled") { patternStats.value = ps.value ?? {}; }
-  } catch { /* silent */ }
-};
-
-provide("patterns", patterns);
-provide("patternStats", patternStats);
-provide("refreshPatterns", fetchPatterns);
-
-onMounted(fetchPatterns);
+onMounted(() => {
+  void patternsStore.refresh();
+});
 </script>
 
 <style scoped>

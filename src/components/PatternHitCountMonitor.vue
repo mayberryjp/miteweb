@@ -19,7 +19,7 @@
       {{ error }}
     </v-alert>
 
-    <v-table v-if="changedRows.length" density="compact" class="rounded-lg" style="background-color: #0d1117;">
+    <v-table v-if="changedRows.length" density="compact" class="rounded-lg" style="background-color: rgb(var(--v-theme-surface-card));">
       <thead>
         <tr>
           <th style="width: 90px;">Pattern</th>
@@ -147,10 +147,12 @@ const handleAutoTick = () => {
   secondsUntilRefresh.value -= 1;
 };
 
+const AUTO_TICK_INTERVAL_MS = 1_000;
+
 onMounted(async () => {
   await pollOnce();
   secondsUntilRefresh.value = pollSeconds;
-  pollTimer = setInterval(handleAutoTick, 1000);
+  pollTimer = setInterval(handleAutoTick, AUTO_TICK_INTERVAL_MS);
 });
 
 onUnmounted(() => {

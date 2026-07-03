@@ -9,13 +9,9 @@ import VueApexCharts from "vue3-apexcharts";
 import "vuetify/styles";
 import "@mdi/font/css/materialdesignicons.css";
 import { createVuetify } from "vuetify";
-import * as components from "vuetify/components";
-import * as directives from "vuetify/directives";
 import { mdi } from "vuetify/iconsets/mdi";
 
 const vuetify = createVuetify({
-  components,
-  directives,
   icons: {
     defaultSet: "mdi",
     sets: { mdi },
@@ -28,6 +24,7 @@ const vuetify = createVuetify({
         colors: {
           background: "#0a0e14",
           surface: "#111820",
+          "surface-card": "#0d1117",
           "background-100": "#161b22",
           "background-200": "#161b22",
           primary: "#3b82f6",

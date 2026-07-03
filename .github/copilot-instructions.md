@@ -17,15 +17,15 @@ This is the **Vue 3 frontend** for [Mite](https://github.com/mayberryjp/miteweb)
 
 ### Layers
 
-- **`src/services/`** — Thin API wrappers around Axios. Each file maps to one backend resource (`logs.ts`, `alerts.ts`, `hosts.ts`, `rules.ts`, `ai.ts`, `system.ts`). All use the shared `api.ts` Axios instance.
+- **`src/services/`** — Thin API wrappers around Axios. Each file maps to one backend resource (`logs.ts`, `alerts.ts`, `actions.ts`, `rules.ts`, `system.ts`). All use the shared `api.ts` Axios instance.
 - **`src/types/index.ts`** — All TypeScript interfaces live in a single file. Import with `import type { ... } from "@/types"`.
 - **`src/views/`** — Page-level components, one per route: Dashboard, Logs, Alerts, Hosts, Rules, AI (list + detail), Settings.
-- **`src/components/`** — Reusable UI components (`SeverityBadge`, `StatsCard`, `FilterBar`, `ApiErrorBanner`, etc.) and `layout/AppLayout.vue` which provides the sidebar + top bar shell.
+- **`src/components/`** — Reusable UI components (`SeverityBadge`, `StatsCard`, `StatusBadge`, `NotificationsBell`, etc.) and `layout/AppLayout.vue` which provides the sidebar + top bar shell.
 - **`src/router/`** — Vue Router with HTML5 history mode. All routes are children of `AppLayout`, defined in `routes/appRoutes.ts`.
 
 ### State Management
 
-Pinia is installed and configured in `main.ts`, but there are currently no stores — views fetch data directly via service functions.
+Pinia is installed and configured in `main.ts`. The `usePatternsStore` (`src/stores/patterns.ts`) caches discovered patterns + hourly stats for the pattern list and detail views. Other views fetch data directly via service functions.
 
 ## Conventions
 
