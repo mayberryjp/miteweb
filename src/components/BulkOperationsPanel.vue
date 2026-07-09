@@ -76,6 +76,22 @@
       Deletes all logs classified as noise.
     </p>
 
+    <div class="mt-6">
+      <v-btn
+        color="error"
+        variant="elevated"
+        prepend-icon="mdi-delete-clock"
+        :loading="deletingPendingLogs"
+        @click="handleDeletePendingLogs"
+      >
+        DELETE PENDING LOGS
+      </v-btn>
+    </div>
+
+    <p class="text-body-2 mt-3">
+      Deletes all pending (unprocessed) logs that have not yet been analyzed.
+    </p>
+
     <v-alert
       type="warning"
       variant="tonal"
@@ -101,12 +117,13 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { deletePatternsNotSeenInDays, moveAllLowToNoise, resetPatternHitCounts } from "@/services/rules";
-import { deleteNoiseLogs } from "@/services/logs";
+import { deleteNoiseLogs, deletePendingLogs } from "@/services/logs";
 
 const movingLowToNoise = ref(false);
 const deletingOldPatterns = ref(false);
 const resettingPatternHitCounts = ref(false);
 const deletingNoiseLogs = ref(false);
+const deletingPendingLogs = ref(false);
 const message = ref("");
 const success = ref(false);
 const deleteOldDayOptions = [7, 15, 30, 60, 90, 180];
@@ -154,6 +171,21 @@ const handleDeleteNoiseLogs = async () => {
     success.value = false;
   } finally {
     deletingNoiseLogs.value = false;
+  }
+};
+
+const handleDeletePendingLogs = async () => {
+  deletingPendingLogs.value = true;
+  message.value = "";
+  try {
+    const result = await deletePendingLogs();
+    message.value = `Deleted ${result.deleted.toLocaleString()} pending logs.`;
+    success.value = true;
+  } catch {
+    message.value = "Failed to delete pending logs. Please try again.";
+    success.value = false;
+  } finally {
+    deletingPendingLogs.value = false;
   }
 };
 
