@@ -56,7 +56,6 @@
             <thead>
               <tr>
                 <th style="width: 140px;">Time</th>
-                <th style="width: 90px;">Severity</th>
                 <th style="width: 120px;">Source</th>
                 <th style="width: 100px;">Pattern #</th>
                 <th>Message</th>
@@ -67,15 +66,9 @@
             <tbody>
               <tr v-for="a in alerts" :key="a.id">
                 <td class="text-no-wrap text-body-2">{{ formatDateTime(a.created_at) }}</td>
-                <td><SeverityBadge :severity="a.severity" /></td>
                 <td class="text-body-2">{{ a.source_ip || a.host || '—' }}</td>
                 <td class="text-body-2">{{ a.pattern_id ?? '—' }}</td>
-                <td
-                  class="text-body-2"
-                  :class="{ 'text-truncate': !expandedAlerts.has(a.id) }"
-                  :style="!expandedAlerts.has(a.id) ? 'max-width: 400px; cursor: pointer;' : 'cursor: pointer;'"
-                  @click="toggleAlert(a.id)"
-                >{{ a.message }}</td>
+                <td class="text-body-2">{{ a.message }}</td>
                 <td class="text-center">
                   <v-btn
                     icon
@@ -113,7 +106,6 @@ import { getAlerts, getAlertsHourly, deleteAlert } from "@/services/alerts";
 import { getLogsHourly, getLogsNoiseHourly, getLogsDroppedHourly, getLogsTooSmallHourly } from "@/services/logs";
 import { getPatternsHourly } from "@/services/rules";
 import type { HealthStatus, StatsData, AlertItem, HourlyStat } from "@/types";
-import SeverityBadge from "@/components/SeverityBadge.vue";
 import StatsChart from "@/components/StatsChart.vue";
 import { formatCompactDateTimeNoSeconds } from "@/utils/datetime";
 import { copyToClipboard } from "@/utils/clipboard";
@@ -129,7 +121,6 @@ const hourlyNoise = ref<HourlyStat[]>([]);
 const hourlyDropped = ref<HourlyStat[]>([]);
 const hourlyTooSmall = ref<HourlyStat[]>([]);
 const hourlyPatterns100 = ref<HourlyStat[]>([]);
-const expandedAlerts = ref(new Set<number>());
 const alertsPerPage = ref(50);
 const chartLoading = ref(true);
 const chartError = ref(false);
@@ -170,12 +161,6 @@ const statusStats = computed(() => [
     color: "text-purple",
   },
 ]);
-
-const toggleAlert = (id: number) => {
-  if (expandedAlerts.value.has(id)) expandedAlerts.value.delete(id);
-  else expandedAlerts.value.add(id);
-  expandedAlerts.value = new Set(expandedAlerts.value);
-};
 
 const copiedAlertId = ref<number | null>(null);
 
