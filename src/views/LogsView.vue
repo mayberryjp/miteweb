@@ -138,7 +138,7 @@
                 {{ getPatternClassification(log) }}
               </v-chip>
               <span class="text-body-2 log-text text-no-wrap" style="min-width: 80px;">{{ log.source_ip || '—' }}</span>
-              <span class="text-body-2 log-text text-no-wrap" style="min-width: 160px;">{{ getPatternName(log) }}</span>
+              <span class="text-body-2 log-text log-pattern">{{ getPatternName(log) }}</span>
               <span class="text-body-2 log-message">{{ log.message }}</span>
               <v-btn
                 icon
@@ -438,6 +438,17 @@ onUnmounted(() => { clearInterval(pollTimer); });
 }
 .log-expanded {
   background-color: rgba(255, 255, 255, 0.04);
+}
+.log-pattern {
+  min-width: 180px;
+  max-width: 240px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-right: 1px solid rgba(255, 255, 255, 0.16);
+  padding-right: 10px;
+  margin-right: 6px;
+  flex-shrink: 0;
 }
 .log-message {
   white-space: nowrap;
